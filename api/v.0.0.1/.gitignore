@@ -1,0 +1,30 @@
+# Dependências do Node.js
+node_modules/
+
+# Arquivos com bases de dados (os mais pesados deste trabalho)
+*.csv
+
+# Pastas com os projetos
+projs/
+
+# Rascunhos de gpt
+chatgpt*
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Builds de produção
+/build/
+
+# Pastas específicas do editor
+.vscode/
+.idea/
+
+# Arquivos específicos do sistema
+.DS_Store
+Thumbs.db
+
+
+
