@@ -14078,8 +14078,8 @@ def statistical_summary():
                 "RD: Raw Data\n"
                 "SS: Data after Standard Scaling\n"
                 + ("LOF: Data after Local Outliers Factor\n" if SHOW_LOF else "")
-                + "It.N: Nth Iteration (non-turbo)\n"
-                  "It.NT: Nth Iteration (TURBO)"
+                + "It.N: Nth Iteration (non-tuned)\n"
+                  "It.NT: Nth Iteration (TUNED)"
             )
             ax.text(1.02, 0.98, legend_text, transform=ax.transAxes,
                     va='top', ha='left', fontsize=9, family='monospace')
@@ -14825,12 +14825,15 @@ def statistical_summary():
         ]))
         story_agg.append(tbl_agg)
         doc_agg.build(story_agg)
-
+        
+        
+        
+        
         # =====================================================================
         # ======================== aggregated_results.png ======================
         # =====================================================================
         aggregated_png_path = os.path.join(base, 'aggregated_results.png')
-
+        
         step_labels = []
         if os.path.isfile(rd_txt_path):
             step_labels.append('raw')
@@ -14844,7 +14847,7 @@ def statistical_summary():
         for it in iteration_numbers:
             if os.path.isfile(os.path.join('.', 'projs', proj, '12_method', 'step_04', f'results_{it}_turbo', 'results.txt')):
                 step_labels.append(f'it{it}T')
-
+        
         def _val_to_float_pct(v):
             s = str(v).strip()
             if s.endswith('%'):
@@ -14860,18 +14863,18 @@ def statistical_summary():
             if -1.0000001 <= val <= 1.0000001:
                 return val * 100.0
             return val
-
+        
         cats_set = set()
         for key in acc_by_map:
             dfk = acc_by_map[key]
             if dfk is not None and not dfk.empty:
                 cats_set |= set(dfk.iloc[:, 0].astype(str).map(normalize_all).values)
-
+        
         cats_sorted = []
         if 'ALL' in cats_set:
             cats_sorted.append('ALL')
         cats_sorted += sorted([c for c in cats_set if c != 'ALL'], key=str.casefold)
-
+        
         x_ticks = []
         for lab in step_labels:
             if lab == 'raw':
@@ -14884,12 +14887,12 @@ def statistical_summary():
                 x_ticks.append(f"It.{lab[2:-1]}T")
             else:
                 x_ticks.append(f"It.{lab[2:]}")
-
+        
         x_pos = list(range(len(x_ticks)))
-
+        
         plt.figure(figsize=(20, 6))
         ax = plt.gca()
-
+        
         def _fill_continuity(values):
             vals = values[:]
             idx_valid = [i for i, v in enumerate(vals) if isinstance(v, (int, float))]
@@ -14920,18 +14923,47 @@ def statistical_summary():
                 else:
                     i += 1
             return vals
-
+        
+        # ---------------- ALL (linha global) ----------------
+        # Fonte correta: perf_rows (mesma do method_performance_small.png)
+        step_key_to_acc = {}
+        for step_raw, _samples, acc in perf_rows:
+            key = _acc_key_for_step(step_raw)
+            if key and isinstance(acc, (int, float)):
+                step_key_to_acc[key] = acc
+        
         y_all = []
         for lab in step_labels:
-            dfk = acc_by_map.get(lab)
-            if dfk is None or dfk.empty:
-                y_all.append(None)
-                continue
-            row = dfk[dfk.iloc[:, 0].astype(str).map(normalize_all) == 'ALL']
-            y_all.append(_val_to_float_pct(row.iloc[0, 1]) if not row.empty else None)
+            y_all.append(step_key_to_acc.get(lab))
         y_all = _fill_continuity(y_all)
-        ax.plot(x_pos, y_all, marker='o', linestyle='-', color='black', linewidth=3, label='ALL')
-
+        
+        ax.plot(
+            x_pos,
+            y_all,
+            marker='D',          # marcador exclusivo
+            linestyle='-',
+            color='black',       # preto reservado EXCLUSIVAMENTE ao ALL
+            linewidth=4,         # negrito só aqui
+            markersize=7,
+            label='ALL',
+            zorder=10
+        )
+        
+        # ---------------- Culturas (nunca preto, nunca em negrito) ----------------
+        import matplotlib as _mpl
+        cycle_colors = [c.get('color') for c in _mpl.rcParams['axes.prop_cycle']]
+        
+        def _is_black(c):
+            if c is None:
+                return False
+            s = str(c).strip().lower()
+            return s in ('k', 'black', '#000', '#000000')
+        
+        cycle_colors = [c for c in cycle_colors if not _is_black(c)]
+        if not cycle_colors:
+            cycle_colors = ['C0', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9']
+        
+        ci = 0
         for cat in [c for c in cats_sorted if c != 'ALL']:
             y_cat = []
             for lab in step_labels:
@@ -14941,9 +14973,22 @@ def statistical_summary():
                     continue
                 row = dfk[dfk.iloc[:, 0].astype(str).map(normalize_all) == cat]
                 y_cat.append(_val_to_float_pct(row.iloc[0, 1]) if not row.empty else None)
+        
             y_cat = _fill_continuity(y_cat)
-            ax.plot(x_pos, y_cat, marker='o', linestyle='-', label=cat)
-
+            color_cat = cycle_colors[ci % len(cycle_colors)]
+            ci += 1
+        
+            ax.plot(
+                x_pos,
+                y_cat,
+                marker='o',
+                linestyle='-',
+                linewidth=1.5,     # mesma espessura para TODAS as culturas
+                color=color_cat,   # garante: nunca preto
+                label=cat,
+                zorder=2
+            )
+        
         ax.set_xticks(x_pos)
         ax.set_xticklabels(x_ticks)
         ax.set_title(f"Project {proj} - Accuracy by Category (Aggregated)")
@@ -14951,39 +14996,41 @@ def statistical_summary():
         ax.set_xlabel("Steps")
         ax.grid(True, alpha=0.3)
         ax.tick_params(axis='x', pad=18)
-
+        
         plt.subplots_adjust(left=0.06, right=0.58, bottom=0.22, top=0.96)
-
+        
         fig = plt.gcf()
         handles, labels = ax.get_legend_handles_labels()
         if 'ALL' in labels:
             idx_all = labels.index('ALL')
             handles = [handles[idx_all]] + [h for i, h in enumerate(handles) if i != idx_all]
             labels = ['ALL'] + [l for l in labels if l != 'ALL']
-
-        fig.legend(handles, labels,
-                   loc='upper left',
-                   bbox_to_anchor=(0.60, 0.96),
-                   borderaxespad=0.,
-                   title="Legend")
-
+        
+        fig.legend(
+            handles, labels,
+            loc='upper left',
+            bbox_to_anchor=(0.60, 0.96),
+            borderaxespad=0.,
+            title="Legend"
+        )
+        
         table_ax = fig.add_axes([0.80, 0.25, 0.18, 0.71])
         table_ax.axis('off')
-
+        
         data_tbl = [["Step", "Samples", "Rem%", "ACC M%"]]
-
+        
         baseline_samples = None
         for _, s, _ in perf_rows:
             if isinstance(s, int):
                 baseline_samples = s
                 break
-
+        
         def _fmt_removed(samples: int) -> str:
             if not isinstance(samples, int) or not isinstance(baseline_samples, int) or baseline_samples <= 0:
                 return "—"
             pct = max(0.0, (1.0 - (samples / baseline_samples)) * 100.0)
             return f"{pct:.2f}%"
-
+        
         def _compact_step_label_for_png(step_raw: str) -> str:
             s = step_raw.strip().lower()
             if s.startswith('results on raw data'):
@@ -14997,7 +15044,7 @@ def statistical_summary():
                 n = m.group(1)
                 return f"It {n} (Turbo)" if '(turbo)' in s else f"It {n}"
             return step_raw
-
+        
         first = True
         for step, samples, acc in perf_rows:
             acc_disp = f"{acc:.2f}%" if isinstance(acc, (int, float)) and acc is not None else "—"
@@ -15010,10 +15057,12 @@ def statistical_summary():
                 removed_disp,
                 acc_disp
             ])
-
-        table = table_ax.table(cellText=data_tbl,
-                               colWidths=[0.25, 0.17, 0.15, 0.20],
-                               loc='upper left')
+        
+        table = table_ax.table(
+            cellText=data_tbl,
+            colWidths=[0.25, 0.17, 0.15, 0.20],
+            loc='upper left'
+        )
         table.auto_set_font_size(False)
         table.set_fontsize(8)
         table.scale(1.20, 1.15)
@@ -15021,31 +15070,37 @@ def statistical_summary():
             cell.set_edgecolor("black")
             if row == 0:
                 cell.set_facecolor("#D3D3D3")
-
+        
         legend_text = (
             "LEGEND  |  RD: Raw Data  |  SS: Data after Standard Scaling"
             + ("  |  LOF: Data after Local Outliers Factor" if SHOW_LOF else "")
-            + "  |  It.N: Nth Iteration (non-turbo)  |  It.NT: Nth Iteration (TURBO)"
+            + "  |  It.N: Nth Iteration (non-tuned)  |  It.NT: Nth Iteration (TUNED)"
         )
-
-        fig.text(0.03, 0.10, legend_text,
-                 ha='left', va='top',
-                 fontsize=9, family='monospace')
-
+        
+        fig.text(
+            0.03, 0.10, legend_text,
+            ha='left', va='top',
+            fontsize=9, family='monospace'
+        )
+        
         try:
             valid = [(i, v) for i, v in enumerate(y_all) if isinstance(v, (int, float))]
             if valid:
                 best_idx, best_val = max(valid, key=lambda t: t[1])
-                ax.plot(best_idx, best_val, marker='o', color='red')
+                ax.plot(best_idx, best_val, marker='D', color='red')
                 best_text = f"Best Accuracy = {best_val:.2f}%, at {x_ticks[best_idx]}"
-                fig.text(0.5, 0.03, best_text,
-                         ha='center', va='bottom',
-                         color='red', fontweight='bold', fontsize=10)
+                fig.text(
+                    0.5, 0.03, best_text,
+                    ha='center', va='bottom',
+                    color='red', fontweight='bold', fontsize=10
+                )
         except Exception:
             pass
-
+        
         plt.savefig(aggregated_png_path)
         plt.close()
+                
+
 
         # =====================================================================
         # =================== Confusion Matrix (CSV/TEX/PNG) ==================
