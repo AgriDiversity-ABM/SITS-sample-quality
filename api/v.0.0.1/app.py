@@ -13352,8 +13352,8 @@ def step_04__evaluate_results_after_exclude():
 #   -F "project_name=lorena.60x60" \
 #   -F "rotate_titles_in_the_matrix_of_confusion=true" \
 #   -F "category_column=label" \
-#   -F "rd_ss_csv_folder_path=/home/alex/Downloads/github/improving_crop_identification__rest/projs/lorena.60x60/00_preprocessing/original_data/" \
-#   -F "it_csv_folder_path=/home/alex/Downloads/github/improving_crop_identification__rest/projs/lorena.60x60/12_method/data/"
+#   -F "rd_ss_csv_folder_path=/home/alex/Downloads/github/SITS-sample-quality/api/v.0.0.1/projs/lorena.60x60/00_preprocessing/original_data/" \
+#   -F "it_csv_folder_path=/home/alex/Downloads/github/SITS-sample-quality/api/v.0.0.1/projs/lorena.60x60/12_method/data/"
 #############################################################################################################
 # curl -X POST http://127.0.0.1:5000/statistical_summary \
 #   -F "project_name=pampa.25x50" \
@@ -13376,6 +13376,9 @@ def step_04__evaluate_results_after_exclude():
 #       utilizados para compor a Matriz de Confusão (recomendo os dados após o standard scaler). 
 #       A matriz de confusão será gerada, sempre, com "./projs/<project_name/08_mapping_original_labels/targets.csv" 
 #       e com "./projs/<project_name>/12_method/step_04/results_<iteration_number>[_turbo]/predicted.csv"
+
+
+
 @app.route('/statistical_summary', methods=['POST'])
 def statistical_summary():
     """
@@ -13394,6 +13397,11 @@ def statistical_summary():
       - lof_csv_folder_path     (opcional) -> usar yyyymmddhhmmss_<project>_lof*.csv (mais recente).
                                    Se NÃO informado, LOF não aparece em nenhum arquivo gerado aqui.
       - it_csv_folder_path      (opcional) -> usar data_<n>.csv (It.n e It.nT)
+
+      # Confusion matrix LaTeX:
+      - rotate_titles_in_the_matrix_of_confusion (opcional; default=false)
+          * false -> títulos normais
+          * true  -> rotaciona títulos das colunas em 90° anti-horário
     """
     try:
         import os
@@ -13402,6 +13410,8 @@ def statistical_summary():
         import uuid
         import math
         import pandas as pd
+        import matplotlib
+        matplotlib.use("Agg")
         import matplotlib.pyplot as plt
         from flask import request, jsonify
         from reportlab.platypus import (
@@ -13412,14 +13422,12 @@ def statistical_summary():
         from reportlab.lib.pagesizes import letter, A4
         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
         from reportlab.pdfbase import pdfmetrics
-        from reportlab.pdfbase.ttfonts import TTFont
         from reportlab.lib.units import inch
         from reportlab.lib.enums import TA_LEFT, TA_CENTER
         from PIL import Image as PILImage
         from pdfrw import PdfReader, PdfWriter
-        from xml.sax.saxutils import escape as _xml_escape  # (apenas para escapar textos em ACC.M./L)
-        import numpy as np  # (usado no heatmap da matriz de confusão)
-        # >>>> NOVO: paleta personalizada do heatmap (quase branco -> laranja -> vermelho)
+        from xml.sax.saxutils import escape as _xml_escape
+        import numpy as np
         from matplotlib.colors import LinearSegmentedColormap, Normalize
 
         # ------------------ 1) parâmetros ------------------
@@ -13430,12 +13438,11 @@ def statistical_summary():
         cat_col = (request.form.get('category_column') or 'label').strip()
         explicit_order_csv = (request.form.get('category_order') or '').strip()
 
-        # CSVs para Samples e descoberta de categorias
         rd_ss_csv_folder_path = (request.form.get('rd_ss_csv_folder_path') or '').strip()
-        lof_csv_folder_path   = (request.form.get('lof_csv_folder_path')   or '').strip()  # OPCIONAL de fato
+        lof_csv_folder_path   = (request.form.get('lof_csv_folder_path')   or '').strip()
         it_csv_folder_path    = (request.form.get('it_csv_folder_path')    or '').strip()
 
-        # flag de controle: quando vazio, ocultar LOF de TODAS as saídas deste endpoint
+        # quando vazio, ocultar LOF de TODAS as saídas deste endpoint
         SHOW_LOF = bool(lof_csv_folder_path)
 
         # ------------------ 2) saída ------------------
@@ -13463,7 +13470,7 @@ def statistical_summary():
             df.insert(0, 'iteration_number', it)
             dfs.append(df)
         if not dfs:
-            return jsonify({"message": 'Nenhum arquivo válido para concatenação.'}), 404
+            return jsonify({"message": "Nenhum arquivo válido para concatenação."}), 404
 
         all_df = pd.concat(dfs, ignore_index=True)
 
@@ -13622,7 +13629,6 @@ def statistical_summary():
         # ------------------ 11) concatenated_results.txt ------------------
         concatenated_txt_path = os.path.join(base, 'concatenated_results.txt')
         with open(concatenated_txt_path, 'w', encoding='utf-8') as fout:
-            # Raw Data
             rd_txt = os.path.join('.', 'projs', proj, '00_preprocessing', 'evaluate_results_on_original_data', 'results.txt')
             if os.path.isfile(rd_txt):
                 fout.write(
@@ -13640,9 +13646,8 @@ def statistical_summary():
                     "##################################################################\n\n"
                 )
 
-            # Standard Scaler / LOF / Optional Clipping
-            std_txt = os.path.join('.', 'projs', proj, '02_evaluate_results_after_standard_scaler', 'results.txt')
-            lof_txt = os.path.join('.', 'projs', proj, '04_evaluate_results_after_lof', 'results.txt')
+            std_txt  = os.path.join('.', 'projs', proj, '02_evaluate_results_after_standard_scaler', 'results.txt')
+            lof_txt  = os.path.join('.', 'projs', proj, '04_evaluate_results_after_lof', 'results.txt')
             clip_txt = os.path.join('.', 'projs', proj, '06_evaluate_results_after_optional_clipping', 'results.txt')
 
             if os.path.isfile(std_txt):
@@ -13661,7 +13666,6 @@ def statistical_summary():
                     "##################################################################\n\n"
                 )
 
-            # >>>>>>> MOSTRAR LOF SOMENTE SE lof_csv_folder_path FOI INFORMADO <<<<<<<
             if SHOW_LOF and os.path.isfile(lof_txt):
                 fout.write(
                     "\n\n"
@@ -13694,7 +13698,6 @@ def statistical_summary():
                     "##################################################################\n\n"
                 )
 
-            # Iterações (não-turbo e TURBO)
             for it in iteration_numbers:
                 header_line = (
                     "\n\n"
@@ -13749,17 +13752,8 @@ def statistical_summary():
             return None
 
         def _samples_from_csv_sources(project_name: str, iters: list[int]) -> dict:
-            """
-            Retorna um dicionário *normalizado* (via _norm_step) com:
-              'results on raw data' -> N
-              'results after standard scaler' -> N
-              'results after lof' -> N
-              'results for iteration number <n>' -> N
-              'results for iteration number <n> (turbo)' -> N
-            """
             smap = {}
 
-            # RD/SS
             if rd_ss_csv_folder_path:
                 rdss_csv = os.path.join(rd_ss_csv_folder_path, 'data.csv')
                 n = _count_rows_csv(rdss_csv)
@@ -13767,7 +13761,6 @@ def statistical_summary():
                     smap[_norm_step('Results on Raw Data')] = n
                     smap[_norm_step('Results After Standard Scaler')] = n
 
-            # LOF (só se informado)
             if SHOW_LOF and lof_csv_folder_path:
                 pattern_lof = os.path.join(lof_csv_folder_path, f"*_{project_name}_lof*.csv")
                 lof_candidates = glob.glob(pattern_lof)
@@ -13777,7 +13770,6 @@ def statistical_summary():
                     if isinstance(n, int):
                         smap[_norm_step('Results After LOF')] = n
 
-            # Iterações
             it_base = it_csv_folder_path if it_csv_folder_path else os.path.join('.', 'projs', project_name, '12_method', 'data')
             for itn in iters:
                 csv_it = os.path.join(it_base, f'data_{itn}.csv')
@@ -13837,8 +13829,10 @@ def statistical_summary():
                                         for tok in reversed(nums):
                                             if not tok.endswith('%'):
                                                 try:
-                                                    perc = float(tok) * 100.0; break
-                                                except: pass
+                                                    perc = float(tok) * 100.0
+                                                    break
+                                                except Exception:
+                                                    pass
                                     acc_val = perc
                                     break
 
@@ -13898,10 +13892,10 @@ def statistical_summary():
                 table_data_mp.append([step, samp_disp, removed_disp, acc_disp])
 
             pg_w = letter[0] - 2 * 36
-            col_w1 = pg_w * 0.50  # Step
-            col_w2 = pg_w * 0.15  # Samples
-            col_w3 = pg_w * 0.15  # Removed
-            col_w4 = pg_w * 0.20  # Acc Mean
+            col_w1 = pg_w * 0.50
+            col_w2 = pg_w * 0.15
+            col_w3 = pg_w * 0.15
+            col_w4 = pg_w * 0.20
             tbl_mp = Table(table_data_mp, colWidths=[col_w1, col_w2, col_w3, col_w4])
             tbl_mp.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
@@ -13918,8 +13912,7 @@ def statistical_summary():
         except Exception:
             pass
 
-        # ------------------ 11.6-d) method_performance.tex (NOVO) ------------
-        # (mantido igual à versão anterior; omitindo comentários para brevidade)
+        # ------------------ 11.6-d) method_performance.tex ------------------
         method_perf_tex_path = os.path.join(base, 'method_performance.tex')
         try:
             if perf_rows:
@@ -13972,19 +13965,14 @@ def statistical_summary():
                                 abbr = f"It.{n}"
                         else:
                             words = re.findall(r'[A-Za-z]+', s)
-                            if words:
-                                abbr = ''.join(w[0].upper() for w in words[:3])
-                            else:
-                                abbr = 'STP'
+                            abbr = ''.join(w[0].upper() for w in words[:3]) if words else 'STP'
                     return f"{abbr} : {s}"
 
                 lines = []
                 lines.append(r"\begin{table}[H]")
                 lines.append(r"\centering")
                 cap_proj = _latex_escape(proj)
-                lines.append(
-                    rf"\caption{{Method performance for project \texttt{{{cap_proj}}}.}}"
-                )
+                lines.append(rf"\caption{{Method performance for project \texttt{{{cap_proj}}}.}}")
                 lines.append(r"\label{tab:method_performance}")
                 lines.append(r"\begin{tabular}{lrrr}")
                 lines.append(r"\hline")
@@ -13998,30 +13986,21 @@ def statistical_summary():
                     step_disp = _build_abbrev_step_label(step)
                     step_tex = _latex_escape(step_disp)
 
-                    if isinstance(samples, int):
-                        samp_disp = f"{samples:,}".replace(",", ".")
-                    else:
-                        samp_disp = "—"
+                    samp_disp = f"{samples:,}".replace(",", ".") if isinstance(samples, int) else "—"
                     samp_tex = _latex_escape(samp_disp)
 
                     if isinstance(samples, int) and step.lower().startswith("results on raw data"):
                         rem_raw = "0.00"
                     else:
                         rem_raw = _fmt_removed_raw(samples)
-                    if rem_raw is None:
-                        rem_tex = "—"
-                    else:
-                        rem_tex = _latex_escape(rem_raw) + r"\%"
+                    rem_tex = "—" if rem_raw is None else (_latex_escape(rem_raw) + r"\%")
 
                     if isinstance(acc, (int, float)) and acc is not None:
-                        acc_raw = f"{acc:.2f}"
-                        acc_tex = _latex_escape(acc_raw) + r"\%"
+                        acc_tex = _latex_escape(f"{acc:.2f}") + r"\%"
                     else:
                         acc_tex = "—"
 
-                    lines.append(
-                        f"{step_tex} & {samp_tex} & {rem_tex} & {acc_tex} \\\\"
-                    )
+                    lines.append(f"{step_tex} & {samp_tex} & {rem_tex} & {acc_tex} \\\\")
 
                 lines.append(r"\hline")
                 lines.append(r"\end{tabular}")
@@ -14032,32 +14011,1052 @@ def statistical_summary():
         except Exception:
             pass
 
-        # ------------------ 11.7) method_performance.png ------------------
-        # (mantido igual; código omitido aqui por já estar no seu projeto.
-        #  Use a mesma versão que você já tem, sem alterações.)
+        # =====================================================================
+        # =================== 11.7) method_performance.png =====================
+        # =====================================================================
+        rd_txt_path  = os.path.join('.', 'projs', proj, '00_preprocessing', 'evaluate_results_on_original_data', 'results.txt')
+        ss_txt_path  = os.path.join('.', 'projs', proj, '02_evaluate_results_after_standard_scaler', 'results.txt')
+        lof_txt_path = os.path.join('.', 'projs', proj, '04_evaluate_results_after_lof', 'results.txt')
 
-        # ... [TODO: aqui entra exatamente o mesmo bloco method_performance.png
-        #           e aggregated_results.* que você já tinha; não alterei nada] ...
+        def _extract_acc_mean(txt_path):
+            if not os.path.isfile(txt_path):
+                return None
+            with open(txt_path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    if 'Accuracy Mean' in line:
+                        parts = line.split('|')
+                        if len(parts) >= 3:
+                            try:
+                                return float(parts[2].strip()) * 100.0
+                            except Exception:
+                                return None
+            return None
+
+        rd_value = _extract_acc_mean(rd_txt_path)
+        ss_value = _extract_acc_mean(ss_txt_path)
+        lof_value = _extract_acc_mean(lof_txt_path) if SHOW_LOF else None
+
+        final_perf = []
+        labels_perf = []
+        if rd_value is not None:
+            final_perf.append(rd_value); labels_perf.append('RD')
+        if ss_value is not None:
+            final_perf.append(ss_value); labels_perf.append('SS')
+        if SHOW_LOF and (lof_value is not None):
+            final_perf.append(lof_value); labels_perf.append('LOF')
+
+        for it in iteration_numbers:
+            nt_path = os.path.join('.', 'projs', proj, '12_method', 'step_04', f'results_{it}', 'results.txt')
+            val_nt = _extract_acc_mean(nt_path)
+            if val_nt is not None:
+                final_perf.append(val_nt); labels_perf.append(f"It.{it}")
+
+        for it in iteration_numbers:
+            tb_path = os.path.join('.', 'projs', proj, '12_method', 'step_04', f'results_{it}_turbo', 'results.txt')
+            val_t = _extract_acc_mean(tb_path)
+            if val_t is not None:
+                final_perf.append(val_t); labels_perf.append(f"It.{it}T")
+
+        perf_png_path = os.path.join(base, 'method_performance.png')
+        perf_small_png_path = os.path.join(base, 'method_performance_small.png')
+
+        if final_perf:
+            x_positions = list(range(len(final_perf)))
+
+            plt.figure(figsize=(20, 5))
+            ax = plt.gca()
+            ax.plot(x_positions, final_perf, marker='o', linestyle='-')
+            ax.set_xticks(x_positions)
+            ax.set_xticklabels(labels_perf)
+            ax.set_title(f"Project {proj} - Accuracy Performance")
+            ax.set_ylabel("Accuracy Mean (%)", rotation=90)
+            ax.set_xlabel("Steps")
+            ax.grid(True)
+
+            legend_text = (
+                "LEGEND\n\n"
+                "RD: Raw Data\n"
+                "SS: Data after Standard Scaling\n"
+                + ("LOF: Data after Local Outliers Factor\n" if SHOW_LOF else "")
+                + "It.N: Nth Iteration (non-turbo)\n"
+                  "It.NT: Nth Iteration (TURBO)"
+            )
+            ax.text(1.02, 0.98, legend_text, transform=ax.transAxes,
+                    va='top', ha='left', fontsize=9, family='monospace')
+
+            best_val = max(final_perf)
+            best_idx = final_perf.index(best_val)
+            best_label = labels_perf[best_idx]
+            ax.plot(best_idx, best_val, marker='o', color='red', markersize=8)
+            best_text = f"Best Accuracy = {best_val:.2f}%, at {best_label}"
+            ax.text(1.02, 0.70, best_text, transform=ax.transAxes,
+                    color='red', fontweight='bold', va='top', ha='left', fontsize=9)
+
+            try:
+                if perf_rows:
+                    baseline_samples = None
+                    for _, s, _ in perf_rows:
+                        if isinstance(s, int):
+                            baseline_samples = s
+                            break
+
+                    def _fmt_removed(samples: int) -> str:
+                        if not isinstance(samples, int) or not isinstance(baseline_samples, int) or baseline_samples <= 0:
+                            return "—"
+                        pct = max(0.0, (1.0 - (samples / baseline_samples)) * 100.0)
+                        return f"{pct:.2f}%"
+
+                    def _compact_step_label_for_png(step_raw: str) -> str:
+                        s = step_raw.strip().lower()
+                        if s.startswith('results on raw data'):
+                            return 'Raw Data'
+                        if s.startswith('results after standard scaler'):
+                            return 'After S.S.'
+                        if s.startswith('results after lof'):
+                            return 'After LOF'
+                        m = re.search(r'results for iteration number\s+(\d+)', s)
+                        if m:
+                            n = m.group(1)
+                            return f"It {n} (Turbo)" if '(turbo)' in s else f"It {n}"
+                        return step_raw
+
+                    fig = plt.gcf()
+                    right_ax = fig.add_axes([0.82, 0.10, 0.17, 0.82])
+                    right_ax.axis('off')
+
+                    data_tbl = [["Step", "Samples", "Rem%", "ACC M%"]]
+                    first = True
+                    for step, samples, acc in perf_rows:
+                        acc_disp = f"{acc:.2f}%" if isinstance(acc, (int, float)) and acc is not None else "—"
+                        samp_disp = f"{samples:,}".replace(',', '.') if isinstance(samples, int) else "—"
+                        removed_disp = "0.00%" if first else _fmt_removed(samples)
+                        first = False
+                        data_tbl.append([
+                            _compact_step_label_for_png(step),
+                            samp_disp,
+                            removed_disp,
+                            acc_disp
+                        ])
+
+                    table = right_ax.table(cellText=data_tbl,
+                                           colWidths=[0.23, 0.154, 0.14, 0.20],
+                                           loc='upper left')
+                    table.auto_set_font_size(False)
+                    table.set_fontsize(8)
+                    table.scale(1.0, 1.2)
+                    for (row, col), cell in table.get_celld().items():
+                        cell.set_edgecolor("black")
+                        if row == 0:
+                            cell.set_facecolor("#D3D3D3")
+                            try:
+                                cell._text.set_ha('center')
+                            except Exception:
+                                pass
+                        else:
+                            if col == 0:
+                                try:
+                                    cell._text.set_ha('left')
+                                except Exception:
+                                    pass
+                            else:
+                                try:
+                                    cell._text.set_ha('center')
+                                except Exception:
+                                    pass
+            except Exception:
+                pass
+
+            plt.tight_layout(rect=[0, 0, 0.80, 1])
+            plt.savefig(perf_png_path)
+            plt.close()
+
+            try:
+                x_small = list(range(len(final_perf)))
+                plt.figure(figsize=(8, 4))
+                ax_small = plt.gca()
+                ax_small.plot(x_small, final_perf, marker='o', linestyle='-')
+                ax_small.set_xticks(x_small)
+                ax_small.set_xticklabels(labels_perf, rotation=45, ha='right')
+                ax_small.set_title(f"Project {proj} - Accuracy Performance")
+                ax_small.set_ylabel("Accuracy Mean (%)")
+                ax_small.set_xlabel("Steps")
+                ax_small.grid(True)
+
+                best_val = max(final_perf)
+                best_idx = final_perf.index(best_val)
+                best_label = labels_perf[best_idx]
+                ax_small.plot(best_idx, best_val, marker='o', color='red', markersize=7)
+                best_text = f"Best Accuracy = {best_val:.2f}%, at {best_label}"
+
+                fig_small = plt.gcf()
+                bbox = ax_small.get_position()
+                x_center = (bbox.x0 + bbox.x1) / 2.0
+                y_text = max(0.0, bbox.y0 - 0.06)
+                fig_small.text(
+                    x_center,
+                    y_text,
+                    best_text,
+                    ha='center',
+                    va='top',
+                    color='red',
+                    fontweight='bold',
+                    fontsize=9
+                )
+
+                plt.tight_layout(rect=[0, 0.12, 1, 1])
+                plt.savefig(perf_small_png_path, dpi=300)
+                plt.close()
+            except Exception:
+                pass
+        else:
+            plt.figure(figsize=(20, 5))
+            plt.text(0.5, 0.5, 'Nenhum dado de Accuracy Mean encontrado', ha='center', va='center')
+            plt.axis('off')
+            plt.savefig(perf_png_path)
+            plt.close()
+
+            plt.figure(figsize=(8, 4))
+            plt.text(0.5, 0.5, 'Nenhum dado de Accuracy Mean encontrado', ha='center', va='center')
+            plt.axis('off')
+            plt.savefig(perf_small_png_path, dpi=300)
+            plt.close()
+
+        # =====================================================================
+        # =================== 12) concatenated_results.pdf =====================
+        # =====================================================================
+        concatenated_pdf_path = os.path.join(base, 'concatenated_results.pdf')
+
+        cover_path = os.path.join(base, 'concatenated_cover_tmp.pdf')
+        cover_doc = SimpleDocTemplate(cover_path, pagesize=letter)
+        cover_styles = getSampleStyleSheet()
+        cover_style = ParagraphStyle(
+            'CoverTitle',
+            parent=cover_styles['Title'],
+            alignment=1,
+            fontSize=24,
+            textColor=colors.white,
+            leading=28
+        )
+
+        def draw_cover_background(canvas, doc):
+            canvas.saveState()
+            canvas.setFillColor(colors.black)
+            canvas.rect(0, 0, letter[0], letter[1], fill=1)
+            canvas.restoreState()
+
+        cover_story = []
+        main_cover_title = f"PROJECT {proj.upper()} RESULTS OF PERFORMANCE WITH RANDOM FOREST"
+        words = main_cover_title.split()
+        broken = "<br/>".join(words)
+        cover_story.append(Spacer(1, letter[1] / 2 - 14))
+        cover_story.append(Paragraph(broken, cover_style))
+        cover_doc.build(cover_story, onFirstPage=draw_cover_background)
+
+        writer = PdfWriter()
+        writer.addpages(PdfReader(cover_path).pages)
+
+        def _safe_name(s: str) -> str:
+            return re.sub(r'[^A-Za-z0-9_.-]+', '_', s)[:80]
+
+        def _add_section_with_cover(section_title: str, section_pdf_path: str):
+            if not os.path.isfile(section_pdf_path):
+                return
+            full_section_title = f"PROJECT {proj.upper()} {section_title}"
+            words = full_section_title.split()
+            broken_title = "<br/>".join(words)
+            tmp_cover = os.path.join(base, f'cover_{_safe_name(section_title)}_{uuid.uuid4().hex}.pdf')
+
+            created = False
+            try:
+                tmp_doc = SimpleDocTemplate(tmp_cover, pagesize=letter)
+                tmp_story = [Spacer(1, letter[1] / 2 - 14), Paragraph(broken_title, cover_style)]
+                tmp_doc.build(tmp_story, onFirstPage=draw_cover_background)
+                if os.path.isfile(tmp_cover):
+                    created = True
+                    writer.addpages(PdfReader(tmp_cover).pages)
+
+                reader_sec = PdfReader(section_pdf_path)
+                if len(reader_sec.pages) > 1:
+                    writer.addpages(reader_sec.pages[1:])
+                else:
+                    writer.addpages(reader_sec.pages)
+            except Exception:
+                try:
+                    reader_sec = PdfReader(section_pdf_path)
+                    writer.addpages(reader_sec.pages)
+                except Exception:
+                    pass
+            finally:
+                if created:
+                    try:
+                        os.remove(tmp_cover)
+                    except Exception:
+                        pass
+
+        rd_pdf = os.path.join('.', 'projs', proj, '00_preprocessing', 'evaluate_results_on_original_data', 'results.pdf')
+        if os.path.isfile(rd_pdf):
+            _add_section_with_cover("Results on Raw Data", rd_pdf)
+
+        std_pdf = os.path.join('.', 'projs', proj, '02_evaluate_results_after_standard_scaler', 'results.pdf')
+        if os.path.isfile(std_pdf):
+            _add_section_with_cover("Results after Standard Scaler", std_pdf)
+
+        lof_pdf = os.path.join('.', 'projs', proj, '04_evaluate_results_after_lof', 'results.pdf')
+        if SHOW_LOF and os.path.isfile(lof_pdf):
+            _add_section_with_cover("Results after Local Outlier Factor", lof_pdf)
+
+        clip_pdf = os.path.join('.', 'projs', proj, '06_evaluate_results_after_optional_clipping', 'results.pdf')
+        if os.path.isfile(clip_pdf):
+            _add_section_with_cover("Results after Optional Clipping", clip_pdf)
+
+        for it in iteration_numbers:
+            results_pdf_path = os.path.join('.', 'projs', proj, '12_method', 'step_04', f'results_{it}', 'results.pdf')
+            if os.path.isfile(results_pdf_path):
+                _add_section_with_cover(f"Results after Bayesian Exclusion number {it}", results_pdf_path)
+            results_pdf_turbo = os.path.join('.', 'projs', proj, '12_method', 'step_04', f'results_{it}_turbo', 'results.pdf')
+            if os.path.isfile(results_pdf_turbo):
+                _add_section_with_cover(f"Results after Bayesian Exclusion number {it} (TURBO)", results_pdf_turbo)
+
+        writer.write(concatenated_pdf_path)
+        try:
+            os.remove(cover_path)
+        except Exception:
+            pass
+
+        # =====================================================================
+        # ========================= final_summary.pdf ==========================
+        # =====================================================================
+        def _display_step_label(step_raw: str) -> str:
+            s = re.sub(r'(?i)\bresults\b', '', step_raw).strip()
+            s = re.sub(r'\s+', ' ', s)
+            s = re.sub(r'\s*\((?i:TURBO)\)', '<br/>(TURBO)', s)
+            return s
+
+        def _load_lof_summary_table():
+            if not SHOW_LOF:
+                return None
+            try:
+                path = os.path.join(lof_csv_folder_path, 'data_o_to_0_categorized_summary.csv')
+                if not os.path.isfile(path):
+                    return None
+                return pd.read_csv(path)
+            except Exception:
+                return None
+
+        def _load_iteration_summary_table(iteration_n: int):
+            try:
+                if not it_csv_folder_path:
+                    return None
+                path = os.path.join(it_csv_folder_path, f"data_{iteration_n-1}_to_{iteration_n}_categorized_summary.csv")
+                if not os.path.isfile(path):
+                    return None
+                df = pd.read_csv(path)
+                for c in ('flagged (qt)', 'flagged (%)'):
+                    if c in df.columns:
+                        df = df.drop(columns=[c])
+                return df
+            except Exception:
+                return None
+
+        A4_PAGE = A4
+        small_font = 7
+        styles = getSampleStyleSheet()
+        p_step = ParagraphStyle('StepCell', parent=styles['Normal'], alignment=TA_LEFT,
+                                fontSize=small_font, leading=small_font+1, spaceAfter=0, wordWrap='CJK')
+        p_hdr  = ParagraphStyle('HdrCell',  parent=styles['Normal'], alignment=TA_CENTER,
+                                fontSize=small_font, leading=small_font+1, spaceAfter=0)
+        p_cell = ParagraphStyle('ValCell',  parent=styles['Normal'], alignment=TA_CENTER,
+                                fontSize=small_font, leading=small_font+1, spaceAfter=0, wordWrap='CJK')
+        p_cat  = ParagraphStyle('CatCell',  parent=styles['Normal'], alignment=TA_LEFT,
+                                fontSize=small_font, leading=small_font+1, spaceAfter=0, wordWrap='CJK')
+
+        def _text_width(text: str, font_name='Helvetica', font_size=small_font):
+            try:
+                return pdfmetrics.stringWidth(text, font_name, font_size)
+            except Exception:
+                return len(text) * (font_size * 0.4)
+
+        def _make_inner_table(df_in: pd.DataFrame, cat_colname: str):
+            if df_in is None or df_in.empty:
+                t = Table([["—"]], colWidths=[40])
+                t.setStyle(TableStyle([
+                    ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+                    ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+                    ('FONTSIZE', (0,0), (-1,-1), small_font),
+                    ('GRID', (0,0), (-1,-1), 0.3, colors.black),
+                ]))
+                return t, 40.0
+
+            df = df_in.copy()
+            new_cols = []
+            percent_cols = set()
+            for c in df.columns:
+                nc = c
+                if '(%)' in nc:
+                    nc = nc.replace(' (%)', '%')
+                if '(qt)' in nc:
+                    nc = nc.replace(' (qt)', '')
+                hdr_final = cat_colname if nc == cat_colname else (nc[:1].upper() + nc[1:])
+                new_cols.append(hdr_final)
+                if nc.endswith('%'):
+                    percent_cols.add(hdr_final)
+            df.columns = new_cols
+
+            for c in list(percent_cols):
+                try:
+                    df[c] = df[c].apply(lambda v: f"{float(v):.2f}%")
+                except Exception:
+                    df[c] = df[c].astype(str).apply(lambda s: s if s.endswith('%') else (s + '%') if s.replace('.','',1).isdigit() else s)
+
+            header = [Paragraph(h, p_hdr) for h in df.columns]
+            data_rows = [header]
+            for _, row in df.iterrows():
+                cells = []
+                for col in df.columns:
+                    if col == cat_colname:
+                        cells.append(Paragraph(str(row[col]), p_cat))
+                    else:
+                        cells.append(Paragraph(str(row[col]), p_cell))
+                data_rows.append(cells)
+
+            padding = 6
+            widths = []
+            for j, col in enumerate(df.columns):
+                texts = [str(col)]
+                texts.extend([str(v) for v in df[col].astype(str).values])
+                max_line = 0.0
+                for tx in texts:
+                    parts = re.split(r'<br\s*/?>', tx, flags=re.I)
+                    longest = max(parts, key=lambda s: _text_width(s))
+                    w = _text_width(longest)
+                    max_line = max(max_line, w)
+                widths.append(max_line + padding)
+
+            try:
+                cat_idx = list(df.columns).index(cat_colname)
+                widths[cat_idx] = max(widths[cat_idx] * 2.0, widths[cat_idx] + 60)
+            except Exception:
+                pass
+
+            tbl_inner = Table(data_rows, colWidths=widths, repeatRows=1)
+            tbl_inner.setStyle(TableStyle([
+                ('BACKGROUND', (0,0), (-1,0), colors.lightgrey),
+                ('TEXTCOLOR', (0,0), (-1,0), colors.black),
+                ('ALIGN', (0,0), (-1,0), 'CENTER'),
+                ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+                ('GRID', (0,0), (-1,-1), 0.3, colors.black),
+                ('FONTSIZE', (0,0), (-1,-1), small_font),
+                ('LEFTPADDING', (0,0), (-1,-1), 2),
+                ('RIGHTPADDING', (0,0), (-1,-1), 2),
+                ('TOPPADDING', (0,0), (-1,-1), 1),
+                ('BOTTOMPADDING', (0,0), (-1,-1), 1),
+            ]))
+            return tbl_inner, float(sum(widths))
+
+        def _parse_accuracy_by_tables(concat_path: str, category_col: str):
+            out = {}
+            if not os.path.isfile(concat_path):
+                return out
+
+            with open(concat_path, 'r', encoding='utf-8') as f:
+                lines = [ln.rstrip('\n') for ln in f.readlines()]
+
+            esc_cat = re.escape(category_col)
+            dash = r"[—-]"
+            patterns = [
+                (re.compile(rf'^\s*Results on (Original|Raw) Data\s*{dash}\s*Accuracy by\s+{esc_cat}\s*$', re.I), 'raw'),
+                (re.compile(rf'^\s*After Standard Scaler\s*{dash}\s*Accuracy by\s+{esc_cat}\s*$', re.I), 'ss'),
+                (re.compile(rf'^\s*After LOF\s*{dash}\s*Accuracy by\s+{esc_cat}\s*$', re.I), 'lof'),
+                (re.compile(rf'^\s*After Bayesian Exclusion\s+(\d+)\s*{dash}\s*Accuracy by\s+{esc_cat}\s*$', re.I), 'it'),
+                (re.compile(rf'^\s*After Bayesian Exclusion\s+(\d+)\s*\(TURBO\)\s*{dash}\s*Accuracy by\s+{esc_cat}\s*$', re.I), 'itT'),
+            ]
+
+            def _grab_table(start_idx):
+                data = []
+                i = start_idx + 1
+                while i < len(lines):
+                    s = lines[i].strip()
+                    if not s:
+                        break
+                    if s.startswith('#') or re.match(r'^Results\b', s, re.I) or re.match(r'^After\b', s, re.I):
+                        break
+                    data.append(lines[i])
+                    i += 1
+                return data
+
+            def _to_dataframe(raw_lines):
+                rows = []
+                header_seen = False
+                for ln in raw_lines:
+                    if re.match(r'^\s*[-+|=]+\s*$', ln):
+                        continue
+                    parts = [p.strip() for p in re.split(r'\|', ln.strip().strip('|'))]
+                    if len(parts) >= 2:
+                        if (not header_seen) and any(re.search(r'\bmean\b', p, re.I) for p in parts):
+                            header_seen = True
+                            continue
+                        label = parts[0]
+                        val = None
+                        for p in reversed(parts[1:]):
+                            m = re.search(r'[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?%?', p)
+                            if m:
+                                val = m.group(0)
+                                break
+                        if label and val:
+                            rows.append([label, val])
+                        continue
+                    cols = re.split(r'\s{2,}', ln.strip())
+                    if len(cols) >= 2:
+                        label = cols[0].strip()
+                        m = re.search(r'[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?%?', cols[-1])
+                        if label and m:
+                            rows.append([label, m.group(0)])
+                if not rows:
+                    return None
+
+                norm = []
+                for lab, val in rows:
+                    v = str(val).strip()
+                    if v.endswith('%'):
+                        try:
+                            vnum = float(v[:-1])
+                            v = f"{vnum:.4f}%"
+                        except Exception:
+                            pass
+                    else:
+                        try:
+                            vnum = float(v)
+                            v = f"{vnum:.4f}%"
+                        except Exception:
+                            pass
+                    norm.append([lab, v])
+
+                try:
+                    return pd.DataFrame(norm, columns=[category_col, 'Mean'])
+                except Exception:
+                    return None
+
+            i = 0
+            while i < len(lines):
+                s = lines[i]
+                matched = False
+                for rx, kind in patterns:
+                    m = rx.match(s)
+                    if m:
+                        if (kind == 'lof') and (not SHOW_LOF):
+                            matched = True
+                            break
+                        data_lines = _grab_table(i)
+                        df_tab = _to_dataframe(data_lines)
+                        if df_tab is not None and not df_tab.empty:
+                            if kind == 'raw':
+                                out['raw'] = df_tab
+                            elif kind == 'ss':
+                                out['ss'] = df_tab
+                            elif kind == 'lof':
+                                out['lof'] = df_tab
+                            elif kind == 'it':
+                                out[f"it{int(m.group(1))}"] = df_tab
+                            elif kind == 'itT':
+                                out[f"it{int(m.group(1))}T"] = df_tab
+                        matched = True
+                        break
+                i += 1
+            return out
+
+        acc_by_map = _parse_accuracy_by_tables(concatenated_txt_path, cat_col)
+
+        def _choose_inner_df_for_step(step_disp: str):
+            text = re.sub(r'<br\s*/?>', ' ', step_disp, flags=re.I)
+            low = text.strip().lower()
+            if 'raw data' in low or 'after standard scaler' in low:
+                return None
+            if 'after lof' in low:
+                return _load_lof_summary_table()
+            m = re.search(r'iteration number\s+(\d+)', low)
+            if m:
+                n = int(m.group(1))
+                return _load_iteration_summary_table(n)
+            return None
+
+        outer_headers = ["Step", "Samples", "ACC.M.", "ACC.M./L", "Removals"]
+        outer_header_cells = [Paragraph(h, p_hdr) for h in outer_headers]
+        outer_data = [outer_header_cells]
+
+        inner_tables_by_step = {}
+        max_removals_w = 0.0
+
+        for step_raw, samples, acc in perf_rows:
+            step_disp = _display_step_label(step_raw)
+            df_inner = _choose_inner_df_for_step(step_disp)
+            tbl_inner = None
+            inner_total_w = 0.0
+            if df_inner is not None:
+                tbl_inner, inner_total_w = _make_inner_table(df_inner, cat_colname=cat_col)
+                max_removals_w = max(max_removals_w, inner_total_w)
+            inner_tables_by_step[step_raw] = (tbl_inner, inner_total_w)
+
+        def _acc_key_for_step(step_raw: str):
+            sr = step_raw.lower()
+            if 'results on raw data' in sr:
+                return 'raw'
+            if 'results after standard scaler' in sr:
+                return 'ss'
+            if 'results after lof' in sr:
+                return 'lof'
+            m = re.search(r'iteration number\s+(\d+)', sr)
+            if m and '(turbo)' in sr:
+                return f"it{int(m.group(1))}T"
+            if m:
+                return f"it{int(m.group(1))}"
+            return None
+
+        acc_tables_by_step = {}
+        max_accl_w = 0.0
+
+        for step_raw, _, _ in perf_rows:
+            key = _acc_key_for_step(step_raw)
+            if (key == 'lof') and (not SHOW_LOF):
+                acc_tables_by_step[step_raw] = (None, 0.0)
+                continue
+            df_acc = acc_by_map.get(key, None)
+            if df_acc is not None and not df_acc.empty:
+                df_acc = df_acc.rename(columns={df_acc.columns[0]: cat_col, df_acc.columns[-1]: 'Mean'})
+                hdr = [Paragraph(cat_col[:1].upper() + cat_col[1:], p_hdr), Paragraph("Mean", p_hdr)]
+                rows = [hdr]
+                for _, r in df_acc.iterrows():
+                    cat_txt = _xml_escape(str(r[cat_col]))
+                    rows.append([Paragraph(cat_txt, p_cat),
+                                 Paragraph(str(r['Mean']),   p_cell)])
+
+                pad = 6
+                col_w0 = max(_text_width(cat_col), max((_text_width(str(x)) for x in df_acc[cat_col].astype(str)), default=0)) + pad
+                col_w1 = max(_text_width('Mean'),   max((_text_width(str(x)) for x in df_acc['Mean'].astype(str)), default=0)) + pad
+                col_w0 = max(col_w0 * 2.0, col_w0 + 60)
+
+                tbl_acc = Table(rows, colWidths=[col_w0, col_w1], repeatRows=1)
+                tbl_acc.setStyle(TableStyle([
+                    ('BACKGROUND', (0,0), (-1,0), colors.lightgrey),
+                    ('ALIGN', (0,0), (-1,0), 'CENTER'),
+                    ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+                    ('GRID', (0,0), (-1,-1), 0.3, colors.black),
+                    ('FONTSIZE', (0,0), (-1,-1), small_font),
+                    ('LEFTPADDING', (0,0), (-1,-1), 2),
+                    ('RIGHTPADDING', (0,0), (-1,-1), 2),
+                    ('TOPPADDING', (0,0), (-1,-1), 1),
+                    ('BOTTOMPADDING', (0,0), (-1,-1), 1),
+                ]))
+                total_w = col_w0 + col_w1
+                acc_tables_by_step[step_raw] = (tbl_acc, total_w)
+                max_accl_w = max(max_accl_w, total_w)
+            else:
+                acc_tables_by_step[step_raw] = (None, 0.0)
+
+        left_margin = right_margin = 36
+        page_w = A4[0] - left_margin - right_margin
+
+        min_step_w = _text_width("Step")
+        min_samples_w = _text_width("Samples")
+        min_acc_w = _text_width("ACC.M.")
+
+        for step_raw, samples, acc in perf_rows:
+            step_disp = _display_step_label(step_raw)
+            parts = re.split(r'<br\s*/?>', step_disp)
+            longest = max(parts, key=lambda s: _text_width(s))
+            min_step_w = max(min_step_w, _text_width(longest))
+
+            s_samples = f"{samples:,}".replace(',', '.') if isinstance(samples, int) else "—"
+            min_samples_w = max(min_samples_w, _text_width(s_samples))
+
+            s_acc = f"{acc:.4f}%" if isinstance(acc, (int, float)) and acc is not None else "—"
+            min_acc_w = max(min_acc_w, _text_width(s_acc))
+
+        min_rem_w = max_removals_w if max_removals_w > 0 else _text_width("Removals") + 30
+        min_accl_tab_w = max_accl_w if max_accl_w > 0 else _text_width("ACC.M./L") + 30
+
+        pad_out = 8
+        step_col_w = min_step_w + pad_out
+        sam_col_w  = max(min_samples_w + pad_out, 40)
+        acc_col_w  = max(min_acc_w + pad_out, 45)
+        accl_col_w = min_accl_tab_w + pad_out
+        rem_col_w  = min_rem_w + pad_out
+
+        reduce_step    = step_col_w * 0.30
+        reduce_samples = sam_col_w  * 0.20
+        reduce_acc     = acc_col_w  * 0.10
+        step_col_w *= 0.70
+        sam_col_w  *= 0.80
+        acc_col_w  *= 0.90
+        freed = reduce_step + reduce_samples + reduce_acc
+        accl_col_w += freed / 2.0
+        rem_col_w  += freed / 2.0
+
+        total_needed = step_col_w + sam_col_w + acc_col_w + accl_col_w + rem_col_w
+        if total_needed > page_w:
+            overflow = total_needed - page_w
+            reducible = (step_col_w - 60) + (sam_col_w - 40) + (acc_col_w - 45)
+            if reducible > 0:
+                ratio = min(1.0, overflow / reducible)
+                step_col_w -= (step_col_w - 60) * ratio
+                sam_col_w  -= (sam_col_w  - 40) * ratio
+                acc_col_w  -= (acc_col_w  - 45) * ratio
+            total_needed = step_col_w + sam_col_w + acc_col_w + accl_col_w + rem_col_w
+            if total_needed > page_w:
+                rest = total_needed - page_w
+                shrink = rest / 2.0
+                accl_col_w = max(120, accl_col_w - shrink)
+                rem_col_w  = max(120, rem_col_w  - shrink)
+
+        outer_col_widths = [step_col_w, sam_col_w, acc_col_w, accl_col_w, rem_col_w]
+
+        for idx, (step_raw, samples, acc) in enumerate(perf_rows):
+            step_disp = _display_step_label(step_raw)
+            acc_disp  = f"{acc:.4f}%" if isinstance(acc, (int, float)) and acc is not None else "—"
+            samp_disp = f"{samples:,}".replace(',', '.') if isinstance(samples, int) else "—"
+
+            step_cell = Paragraph(step_disp, p_step)
+
+            acc_tbl, _acw = acc_tables_by_step.get(step_raw, (None, 0.0))
+            accl_cell = Paragraph("", p_cell) if acc_tbl is None else KeepInFrame(accl_col_w - 6, 10000, [acc_tbl], mode='shrink')
+
+            rem_tbl, _rw = inner_tables_by_step.get(step_raw, (None, 0.0))
+            if rem_tbl is None:
+                rem_cell = Paragraph("None", p_cell) if idx in (0, 1) else Paragraph("", p_cell)
+            else:
+                rem_cell = KeepInFrame(rem_col_w - 6, 10000, [rem_tbl], mode='shrink')
+
+            outer_data.append([
+                step_cell,
+                Paragraph(str(samp_disp), p_cell),
+                Paragraph(str(acc_disp), p_cell),
+                accl_cell,
+                rem_cell
+            ])
+
+        final_pdf = os.path.join(base, 'final_summary.pdf')
+        doc_final = SimpleDocTemplate(
+            final_pdf,
+            pagesize=A4,
+            leftMargin=left_margin, rightMargin=right_margin,
+            topMargin=36, bottomMargin=36
+        )
+        story_final = []
+        story_final.append(Paragraph(
+            f"Final Summary - {proj}",
+            ParagraphStyle('H2C', parent=styles['Heading2'], alignment=TA_CENTER)
+        ))
+        story_final.append(Spacer(1, 6))
+
+        tbl_final = Table(outer_data, colWidths=outer_col_widths, repeatRows=1)
+        tbl_final.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.lightgrey),
+            ('TEXTCOLOR', (0,0), (-1,0), colors.black),
+            ('ALIGN', (0,0), (-1,0), 'CENTER'),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('FONTSIZE', (0,0), (-1,-1), small_font),
+            ('GRID', (0,0), (-1,-1), 0.3, colors.black),
+            ('LEFTPADDING', (0,0), (-1,-1), 2),
+            ('RIGHTPADDING', (0,0), (-1,-1), 2),
+            ('TOPPADDING', (0,0), (-1,-1), 1.5),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 1.5),
+        ]))
+        story_final.append(tbl_final)
+        doc_final.build(story_final)
+
+        # =====================================================================
+        # ======================== aggregated_results.pdf ======================
+        # =====================================================================
+        aggregated_pdf_path = os.path.join(base, 'aggregated_results.pdf')
+        doc_agg = SimpleDocTemplate(aggregated_pdf_path, pagesize=_LETTER)
+        story_agg = []
+        story_agg.append(Paragraph("Aggregated Results (from first to last iteration)", styles['Heading2']))
+        story_agg.append(Spacer(1, 12))
+
+        agg_headers = [
+            'Total',
+            'Kept (qt)',
+            'Kept (%)',
+            'Removed (qt)',
+            'Removed (%)',
+            'Flagged (qt)',
+            'Flagged (%)'
+        ]
+        agg_table = [agg_headers]
+
+        init_total_from_mp = None
+        for step_name, samples_val, _acc_val in perf_rows:
+            if _norm_step(step_name).startswith('results on raw data'):
+                if isinstance(samples_val, int):
+                    init_total_from_mp = samples_val
+                break
+
+        first_row = totals_df.iloc[0]
+        last_row  = totals_df.iloc[-1]
+        init_total_fallback = int(first_row['total'])
+        init_total = init_total_from_mp if isinstance(init_total_from_mp, int) else init_total_fallback
+
+        kept_qt    = int(last_row['kept (qt)'])
+        flagged_qt = int(totals_df['flagged (qt)'].sum())
+        removed_qt = max(0, init_total - kept_qt - flagged_qt)
+
+        kept_pct    = (kept_qt / init_total) * 100.0 if init_total > 0 else 0.0
+        removed_pct = (removed_qt / init_total) * 100.0 if init_total > 0 else 0.0
+        flagged_pct = (flagged_qt / init_total) * 100.0 if init_total > 0 else 0.0
+
+        agg_table.append([
+            init_total,
+            kept_qt,    f"{kept_pct:.2f}",
+            removed_qt, f"{removed_pct:.2f}",
+            flagged_qt, f"{flagged_pct:.2f}",
+        ])
+
+        page_width = _LETTER[0] - 2 * 36
+        each_col = page_width / len(agg_headers)
+        agg_col_widths = [each_col] * len(agg_headers)
+
+        tbl_agg = Table(agg_table, colWidths=agg_col_widths, repeatRows=1)
+        tbl_agg.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('ALIGN', (0, 1), (-1, -1), 'CENTER'),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ]))
+        story_agg.append(tbl_agg)
+        doc_agg.build(story_agg)
+
+        # =====================================================================
+        # ======================== aggregated_results.png ======================
+        # =====================================================================
+        aggregated_png_path = os.path.join(base, 'aggregated_results.png')
+
+        step_labels = []
+        if os.path.isfile(rd_txt_path):
+            step_labels.append('raw')
+        if os.path.isfile(ss_txt_path):
+            step_labels.append('ss')
+        if SHOW_LOF and os.path.isfile(lof_txt_path):
+            step_labels.append('lof')
+        for it in iteration_numbers:
+            if os.path.isfile(os.path.join('.', 'projs', proj, '12_method', 'step_04', f'results_{it}', 'results.txt')):
+                step_labels.append(f'it{it}')
+        for it in iteration_numbers:
+            if os.path.isfile(os.path.join('.', 'projs', proj, '12_method', 'step_04', f'results_{it}_turbo', 'results.txt')):
+                step_labels.append(f'it{it}T')
+
+        def _val_to_float_pct(v):
+            s = str(v).strip()
+            if s.endswith('%'):
+                try:
+                    val = float(s[:-1])
+                except Exception:
+                    return None
+            else:
+                try:
+                    val = float(s)
+                except Exception:
+                    return None
+            if -1.0000001 <= val <= 1.0000001:
+                return val * 100.0
+            return val
+
+        cats_set = set()
+        for key in acc_by_map:
+            dfk = acc_by_map[key]
+            if dfk is not None and not dfk.empty:
+                cats_set |= set(dfk.iloc[:, 0].astype(str).map(normalize_all).values)
+
+        cats_sorted = []
+        if 'ALL' in cats_set:
+            cats_sorted.append('ALL')
+        cats_sorted += sorted([c for c in cats_set if c != 'ALL'], key=str.casefold)
+
+        x_ticks = []
+        for lab in step_labels:
+            if lab == 'raw':
+                x_ticks.append('RD')
+            elif lab == 'ss':
+                x_ticks.append('SS')
+            elif lab == 'lof':
+                x_ticks.append('LOF')
+            elif lab.endswith('T'):
+                x_ticks.append(f"It.{lab[2:-1]}T")
+            else:
+                x_ticks.append(f"It.{lab[2:]}")
+
+        x_pos = list(range(len(x_ticks)))
+
+        plt.figure(figsize=(20, 6))
+        ax = plt.gca()
+
+        def _fill_continuity(values):
+            vals = values[:]
+            idx_valid = [i for i, v in enumerate(vals) if isinstance(v, (int, float))]
+            if not idx_valid:
+                return vals
+            first, last = idx_valid[0], idx_valid[-1]
+            for i in range(0, first):
+                vals[i] = vals[first]
+            for i in range(last + 1, len(vals)):
+                vals[i] = vals[last]
+            i = 0
+            while i < len(vals):
+                if vals[i] is None:
+                    j = i
+                    while j < len(vals) and vals[j] is None:
+                        j += 1
+                    left = vals[i - 1] if i - 1 >= 0 else None
+                    right = vals[j] if j < len(vals) else None
+                    if isinstance(left, (int, float)) and isinstance(right, (int, float)):
+                        for k in range(i, j):
+                            t = (k - (i - 1)) / (j - (i - 1))
+                            vals[k] = left + t * (right - left)
+                    else:
+                        fillv = left if isinstance(left, (int, float)) else right
+                        for k in range(i, j):
+                            vals[k] = fillv
+                    i = j
+                else:
+                    i += 1
+            return vals
+
+        y_all = []
+        for lab in step_labels:
+            dfk = acc_by_map.get(lab)
+            if dfk is None or dfk.empty:
+                y_all.append(None)
+                continue
+            row = dfk[dfk.iloc[:, 0].astype(str).map(normalize_all) == 'ALL']
+            y_all.append(_val_to_float_pct(row.iloc[0, 1]) if not row.empty else None)
+        y_all = _fill_continuity(y_all)
+        ax.plot(x_pos, y_all, marker='o', linestyle='-', color='black', linewidth=3, label='ALL')
+
+        for cat in [c for c in cats_sorted if c != 'ALL']:
+            y_cat = []
+            for lab in step_labels:
+                dfk = acc_by_map.get(lab)
+                if dfk is None or dfk.empty:
+                    y_cat.append(None)
+                    continue
+                row = dfk[dfk.iloc[:, 0].astype(str).map(normalize_all) == cat]
+                y_cat.append(_val_to_float_pct(row.iloc[0, 1]) if not row.empty else None)
+            y_cat = _fill_continuity(y_cat)
+            ax.plot(x_pos, y_cat, marker='o', linestyle='-', label=cat)
+
+        ax.set_xticks(x_pos)
+        ax.set_xticklabels(x_ticks)
+        ax.set_title(f"Project {proj} - Accuracy by Category (Aggregated)")
+        ax.set_ylabel("Accuracy Mean (%)")
+        ax.set_xlabel("Steps")
+        ax.grid(True, alpha=0.3)
+        ax.tick_params(axis='x', pad=18)
+
+        plt.subplots_adjust(left=0.06, right=0.58, bottom=0.22, top=0.96)
+
+        fig = plt.gcf()
+        handles, labels = ax.get_legend_handles_labels()
+        if 'ALL' in labels:
+            idx_all = labels.index('ALL')
+            handles = [handles[idx_all]] + [h for i, h in enumerate(handles) if i != idx_all]
+            labels = ['ALL'] + [l for l in labels if l != 'ALL']
+
+        fig.legend(handles, labels,
+                   loc='upper left',
+                   bbox_to_anchor=(0.60, 0.96),
+                   borderaxespad=0.,
+                   title="Legend")
+
+        table_ax = fig.add_axes([0.80, 0.25, 0.18, 0.71])
+        table_ax.axis('off')
+
+        data_tbl = [["Step", "Samples", "Rem%", "ACC M%"]]
+
+        baseline_samples = None
+        for _, s, _ in perf_rows:
+            if isinstance(s, int):
+                baseline_samples = s
+                break
+
+        def _fmt_removed(samples: int) -> str:
+            if not isinstance(samples, int) or not isinstance(baseline_samples, int) or baseline_samples <= 0:
+                return "—"
+            pct = max(0.0, (1.0 - (samples / baseline_samples)) * 100.0)
+            return f"{pct:.2f}%"
+
+        def _compact_step_label_for_png(step_raw: str) -> str:
+            s = step_raw.strip().lower()
+            if s.startswith('results on raw data'):
+                return 'Raw Data'
+            if s.startswith('results after standard scaler'):
+                return 'After S.S.'
+            if s.startswith('results after lof'):
+                return 'After LOF'
+            m = re.search(r'results for iteration number\s+(\d+)', s)
+            if m:
+                n = m.group(1)
+                return f"It {n} (Turbo)" if '(turbo)' in s else f"It {n}"
+            return step_raw
+
+        first = True
+        for step, samples, acc in perf_rows:
+            acc_disp = f"{acc:.2f}%" if isinstance(acc, (int, float)) and acc is not None else "—"
+            samp_disp = f"{samples:,}".replace(',', '.') if isinstance(samples, int) else "—"
+            removed_disp = "0.00%" if first else _fmt_removed(samples)
+            first = False
+            data_tbl.append([
+                _compact_step_label_for_png(step),
+                samp_disp,
+                removed_disp,
+                acc_disp
+            ])
+
+        table = table_ax.table(cellText=data_tbl,
+                               colWidths=[0.25, 0.17, 0.15, 0.20],
+                               loc='upper left')
+        table.auto_set_font_size(False)
+        table.set_fontsize(8)
+        table.scale(1.20, 1.15)
+        for (row, col), cell in table.get_celld().items():
+            cell.set_edgecolor("black")
+            if row == 0:
+                cell.set_facecolor("#D3D3D3")
+
+        legend_text = (
+            "LEGEND  |  RD: Raw Data  |  SS: Data after Standard Scaling"
+            + ("  |  LOF: Data after Local Outliers Factor" if SHOW_LOF else "")
+            + "  |  It.N: Nth Iteration (non-turbo)  |  It.NT: Nth Iteration (TURBO)"
+        )
+
+        fig.text(0.03, 0.10, legend_text,
+                 ha='left', va='top',
+                 fontsize=9, family='monospace')
+
+        try:
+            valid = [(i, v) for i, v in enumerate(y_all) if isinstance(v, (int, float))]
+            if valid:
+                best_idx, best_val = max(valid, key=lambda t: t[1])
+                ax.plot(best_idx, best_val, marker='o', color='red')
+                best_text = f"Best Accuracy = {best_val:.2f}%, at {x_ticks[best_idx]}"
+                fig.text(0.5, 0.03, best_text,
+                         ha='center', va='bottom',
+                         color='red', fontweight='bold', fontsize=10)
+        except Exception:
+            pass
+
+        plt.savefig(aggregated_png_path)
+        plt.close()
 
         # =====================================================================
         # =================== Confusion Matrix (CSV/TEX/PNG) ==================
         # =====================================================================
-        # Matriz de confusão *após exclusão* usando:
-        #   - ./projs/<proj>/08_mapping_original_labels/targets.csv
-        #       (id, label  -> rótulo verdadeiro)
-        #   - ./projs/<proj>/12_method/step_04/results_<n>[_turbo]/predicted.csv
-        #       (id, label  -> rótulo previsto)
-        #
-        # Regra:
-        #   - Escolher SEMPRE o maior <n> existente em step_04;
-        #   - Para esse n, preferir results_<n>_turbo se existir predicted.csv lá.
+        # (mantém a versão nova: escolhe maior iteração, prefere TURBO, mapeia label_map.csv se existir,
+        #  suporta rotate_titles_in_the_matrix_of_confusion no LaTeX)
         try:
             base_step04 = os.path.join('.', 'projs', proj, '12_method', 'step_04')
             targets_csv = os.path.join('.', 'projs', proj, '08_mapping_original_labels', 'targets.csv')
 
-            # Nada a fazer se não existir pasta de step_04 ou o targets.csv
             if os.path.isdir(base_step04) and os.path.isfile(targets_csv):
-                # Descobrir todos os "results_*" e pegar o MAIOR n
                 candidates = glob.glob(os.path.join(base_step04, 'results_*'))
                 last_it = None
                 has_turbo_for_last = False
@@ -14073,11 +15072,9 @@ def statistical_summary():
                         last_it = it
                         has_turbo_for_last = turbo
                     elif it == last_it and turbo:
-                        # Se tiver mesma iteração com e sem turbo, prioriza turbo.
                         has_turbo_for_last = True
 
                 if last_it is not None:
-                    # Caminho preferencial: TURBO (se existir predicted.csv)
                     pred_turbo_dir = os.path.join(base_step04, f'results_{last_it}_turbo')
                     pred_nt_dir    = os.path.join(base_step04, f'results_{last_it}')
                     pred_csv_path  = None
@@ -14097,34 +15094,25 @@ def statistical_summary():
                         df_targets = pd.read_csv(targets_csv)
                         df_pred    = pd.read_csv(pred_csv_path)
 
-                        # Precisamos de 'id' e 'label' em ambos
-                        if (
-                            {'id', 'label'}.issubset(df_targets.columns)
-                            and {'id', 'label'}.issubset(df_pred.columns)
-                        ):
-                            # TENTATIVA: se existir label_map.csv, mapeia inteiro -> texto
+                        if {'id', 'label'}.issubset(df_targets.columns) and {'id', 'label'}.issubset(df_pred.columns):
+                            # mapeamento opcional inteiro -> texto via label_map.csv
                             try:
-                                label_map_path = os.path.join(
-                                    '.', 'projs', proj, '08_mapping_original_labels', 'label_map.csv'
-                                )
+                                label_map_path = os.path.join('.', 'projs', proj, '08_mapping_original_labels', 'label_map.csv')
                                 if os.path.isfile(label_map_path):
                                     df_map = pd.read_csv(label_map_path)
                                     if {'label_text', 'label_integer'}.issubset(df_map.columns):
-                                        map_dict = {
-                                            int(row['label_integer']): str(row['label_text'])
-                                            for _, row in df_map.iterrows()
-                                        }
+                                        map_dict = {int(row['label_integer']): str(row['label_text']) for _, row in df_map.iterrows()}
+
                                         def _map_label(v):
                                             try:
                                                 return map_dict[int(v)]
                                             except Exception:
                                                 return str(v)
+
                                         df_targets['label'] = df_targets['label'].apply(_map_label)
                                 else:
-                                    # se não houver label_map, ao menos converte para string
                                     df_targets['label'] = df_targets['label'].astype(str)
                             except Exception:
-                                # Em caso de erro no mapeamento, segue com labels originais
                                 df_targets['label'] = df_targets['label'].astype(str)
 
                             df_pred = df_pred.rename(columns={'label': 'pred_label'})
@@ -14133,25 +15121,17 @@ def statistical_summary():
                                 df_pred[['id', 'pred_label']],
                                 on='id',
                                 how='inner'
-                            )
-
-                            # Remove linhas com NaN em rótulos
-                            merged = merged.dropna(subset=['label', 'pred_label'])
+                            ).dropna(subset=['label', 'pred_label'])
 
                             if not merged.empty:
-                                # y_true = rótulo original (targets.csv)
-                                # y_pred = rótulo previsto (predicted.csv)
                                 y_true = merged['label'].astype(str)
                                 y_pred = merged['pred_label'].astype(str)
 
-                                # Crosstab -> matriz de confusão
                                 cm = pd.crosstab(y_true, y_pred)
 
-                                # ---------------- CSV ----------------
                                 cm_csv_path = os.path.join(base, 'confusion_matrix.csv')
                                 cm.to_csv(cm_csv_path, index=True)
 
-                                # ---------------- TEX ----------------
                                 def _latex_escape(text: str) -> str:
                                     rep = {
                                         '\\': r'\textbackslash{}',
@@ -14169,90 +15149,32 @@ def statistical_summary():
                                         text = text.replace(k, v)
                                     return text
 
-                                
                                 cols = list(cm.columns)
                                 rows = list(cm.index)
-    
-                                # Novo parâmetro opcional:
-                                # rotate_titles_in_the_matrix_of_confusion
-                                # - default: false  -> títulos normais
-                                # - true           -> títulos rotacionados em 90° (anti-horário)
-                                rotate_titles = str(
-                                    request.form.get(
-                                        'rotate_titles_in_the_matrix_of_confusion',
-                                        'false'
-                                    )
-                                ).strip().lower() in ('true', '1', 'yes', 'y')
-                                    
 
-                                # lines = []
-                                # lines.append(r"\begin{table}[!h]")
-                                # lines.append(r"\centering")
-                                # lines.append(
-                                #     rf"\caption{{{_latex_escape('Confusion matrix (after exclusion) — last iteration')}}}"
-                                # )
-                                # lines.append(
-                                #     rf"\label{{{_latex_escape('tab:confusion_matrix_after')}}}"
-                                # )
-                                # lines.append(
-                                #     r"\begin{tabular}{@{}l" + "r" * len(cols) + r"@{}}"
-                                # )
-                                # lines.append(r"\hline")
-                                # header = (
-                                #     "True \\ Pred"
-                                #     + " & "
-                                #     + " & ".join(_latex_escape(str(c)) for c in cols)
-                                #     + r" \\ \hline"
-                                # )
-                                # lines.append(header)
-                                
-                                
+                                rotate_titles = str(
+                                    request.form.get('rotate_titles_in_the_matrix_of_confusion', 'false')
+                                ).strip().lower() in ('true', '1', 'yes', 'y')
+
                                 lines = []
                                 lines.append(r"\begin{table}[!h]")
                                 lines.append(r"\centering")
-                                lines.append(
-                                    rf"\caption{{{_latex_escape('Confusion matrix (after exclusion) — last iteration')}}}"
-                                )
-                                lines.append(
-                                    rf"\label{{{_latex_escape('tab:confusion_matrix_after')}}}"
-                                )
-    
-                                # Tabela o mais compacta possível horizontalmente:
-                                # - @{} remove espaço extra nas bordas
-                                # - 1ª coluna à esquerda, demais à direita
-                                lines.append(
-                                    r"\begin{tabular}{@{}l" + "r" * len(cols) + r"@{}}"
-                                )
+                                lines.append(rf"\caption{{{_latex_escape('Confusion matrix (after exclusion) — last iteration')}}}")
+                                lines.append(rf"\label{{{_latex_escape('tab:confusion_matrix_after')}}}")
+                                lines.append(r"\begin{tabular}{@{}l" + "r" * len(cols) + r"@{}}")
                                 lines.append(r"\hline")
-    
-                                # Cabeçalhos das colunas:
-                                #   - se rotate_titles=True, rotaciona 90° (anti-horário)
-                                #   - caso contrário, mantém o texto normal
+
                                 if rotate_titles:
-                                    col_headers_tex = [
-                                        rf"\rotatebox[origin=c]{{90}}{{{_latex_escape(str(c))}}}"
-                                        for c in cols
-                                    ]
+                                    col_headers_tex = [rf"\rotatebox[origin=c]{{90}}{{{_latex_escape(str(c))}}}" for c in cols]
                                 else:
-                                    col_headers_tex = [
-                                        _latex_escape(str(c)) for c in cols
-                                    ]
-    
-                                header = (
-                                    "True \\ Pred"
-                                    + " & "
-                                    + " & ".join(col_headers_tex)
-                                    + r" \\ \hline"
-                                )
+                                    col_headers_tex = [_latex_escape(str(c)) for c in cols]
+
+                                header = "True \\ Pred" + " & " + " & ".join(col_headers_tex) + r" \\ \hline"
                                 lines.append(header)
-                                    
-                                
-                                
+
                                 for r in rows:
                                     vals = " & ".join(str(int(cm.loc[r, c])) for c in cols)
-                                    lines.append(
-                                        _latex_escape(str(r)) + " & " + vals + r" \\"
-                                    )
+                                    lines.append(_latex_escape(str(r)) + " & " + vals + r" \\")
                                 lines.append(r"\hline")
                                 lines.append(r"\end{tabular}")
                                 lines.append(r"\end{table}")
@@ -14261,19 +15183,17 @@ def statistical_summary():
                                 with open(cm_tex_path, 'w', encoding='utf-8') as f:
                                     f.write("\n".join(lines))
 
-                                # ---------------- PNG (heatmap) ----------------
                                 cm_png_path = os.path.join(base, 'confusion_matrix.png')
                                 plt.figure(figsize=(10, 8))
                                 ax_cm = plt.gca()
 
-                                # Paleta: quase branco -> laranja -> vermelho
                                 cmap_wh_or_red = LinearSegmentedColormap.from_list(
                                     'wh_or_red',
                                     [
-                                        (0.0, '#FFFBE6'),  # ~0
-                                        (0.40, '#FFD180'), # baixo-médio
-                                        (0.70, '#FF8F00'), # médio-alto
-                                        (1.0, '#D32F2F'),  # alto
+                                        (0.0, '#FFFBE6'),
+                                        (0.40, '#FFD180'),
+                                        (0.70, '#FF8F00'),
+                                        (1.0, '#D32F2F'),
                                     ]
                                 )
                                 vmax = int(np.max(cm.values)) if cm.values.size else 1
@@ -14281,12 +15201,7 @@ def statistical_summary():
                                     vmax = 1
                                 norm = Normalize(vmin=0, vmax=vmax)
 
-                                im = ax_cm.imshow(
-                                    cm.values,
-                                    aspect='auto',
-                                    cmap=cmap_wh_or_red,
-                                    norm=norm
-                                )
+                                im = ax_cm.imshow(cm.values, aspect='auto', cmap=cmap_wh_or_red, norm=norm)
 
                                 ax_cm.set_xticks(range(len(cols)))
                                 ax_cm.set_yticks(range(len(rows)))
@@ -14295,34 +15210,16 @@ def statistical_summary():
                                 ax_cm.set_xlabel('Predicted')
                                 ax_cm.set_ylabel('True')
 
-                                # It.N ou It.NT no título, de acordo com o modo escolhido
-                                if used_suffix == "T":
-                                    it_label = f"It.{last_it}T"
-                                else:
-                                    it_label = f"It.{last_it}"
-                                ax_cm.set_title(
-                                    f'Confusion Matrix — {proj} ({it_label})'
-                                )
+                                it_label = f"It.{last_it}T" if used_suffix == "T" else f"It.{last_it}"
+                                ax_cm.set_title(f'Confusion Matrix — {proj} ({it_label})')
 
-                                # Anotações nas células
                                 for i in range(cm.shape[0]):
                                     for j in range(cm.shape[1]):
-                                        ax_cm.text(
-                                            j, i,
-                                            str(int(cm.iloc[i, j])),
-                                            ha='center', va='center'
-                                        )
+                                        ax_cm.text(j, i, str(int(cm.iloc[i, j])), ha='center', va='center')
 
-                                # Colorbar + legenda textual
-                                cbar = plt.colorbar(
-                                    im,
-                                    ax=ax_cm,
-                                    fraction=0.046,
-                                    pad=0.04
-                                )
+                                cbar = plt.colorbar(im, ax=ax_cm, fraction=0.046, pad=0.04)
                                 cbar.set_label('Contagem', rotation=90)
 
-                                # Espaço à direita para texto
                                 plt.tight_layout(rect=[0, 0, 0.80, 1])
                                 fig_cm = plt.gcf()
                                 fig_cm.subplots_adjust(right=0.78)
@@ -14333,21 +15230,11 @@ def statistical_summary():
                                     "Laranja → valores médios\n"
                                     "Vermelho → valores mais altos"
                                 )
-                                fig_cm.text(
-                                    0.82, 0.5,
-                                    legend_text_cm,
-                                    va='center', ha='left',
-                                    fontsize=9
-                                )
+                                fig_cm.text(0.82, 0.5, legend_text_cm, va='center', ha='left', fontsize=9)
 
-                                plt.savefig(
-                                    cm_png_path,
-                                    bbox_inches='tight',
-                                    pad_inches=0.25
-                                )
+                                plt.savefig(cm_png_path, bbox_inches='tight', pad_inches=0.25)
                                 plt.close()
         except Exception:
-            # nunca interromper o endpoint por falhas na geração da matriz de confusão
             pass
 
         # ------------------ resposta ------------------
@@ -14375,1933 +15262,6 @@ def statistical_summary():
 
     except Exception as e:
         return jsonify({"message": f"Erro interno: {e}"}), 500
-
-
-
-
-# @app.route('/statistical_summary', methods=['POST'])
-# def statistical_summary():
-#     """
-#     Gera estatísticas gerais, PDFs e gráficos a partir dos arquivos
-#     data_<it-1>_to_<it>_categorized_summary.csv do diretório 12_method/data.
-
-#     Parâmetros (form-data):
-#       - project_name            (obrigatório)
-#       - category_column         (opcional; default='label')
-#       - category_order          (opcional; CSV)
-
-#       # Para contagem de Samples via CSV e (também) descoberta de categorias:
-#       - rd_ss_csv_folder_path   (opcional) -> usar data.csv para:
-#           * RD e SS (contagem de Samples)
-#           * descoberta de categorias (substitui o antigo category_source_csv)
-#       - lof_csv_folder_path     (opcional) -> usar yyyymmddhhmmss_<project>_lof*.csv (mais recente).
-#                                    Se NÃO informado, LOF não aparece em nenhum arquivo gerado aqui.
-#       - it_csv_folder_path      (opcional) -> usar data_<n>.csv (It.n e It.nT)
-#     """
-#     try:
-#         import os
-#         import re
-#         import glob
-#         import uuid
-#         import math
-#         import pandas as pd
-#         import matplotlib.pyplot as plt
-#         from flask import request, jsonify
-#         from reportlab.platypus import (
-#             SimpleDocTemplate, Table, TableStyle, Spacer, Paragraph,
-#             Image as RLImage, PageBreak, KeepInFrame
-#         )
-#         from reportlab.lib import colors
-#         from reportlab.lib.pagesizes import letter, A4
-#         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-#         from reportlab.pdfbase import pdfmetrics
-#         from reportlab.pdfbase.ttfonts import TTFont
-#         from reportlab.lib.units import inch
-#         from reportlab.lib.enums import TA_LEFT, TA_CENTER
-#         from PIL import Image as PILImage
-#         from pdfrw import PdfReader, PdfWriter
-#         from xml.sax.saxutils import escape as _xml_escape  # (apenas para escapar textos em ACC.M./L)
-#         import numpy as np  # (usado no heatmap da matriz de confusão)
-#         # >>>> NOVO: paleta personalizada do heatmap (quase branco -> laranja -> vermelho)
-#         from matplotlib.colors import LinearSegmentedColormap, Normalize
-
-#         # ------------------ 1) parâmetros ------------------
-#         if 'project_name' not in request.form:
-#             return jsonify({"message": "Parâmetro 'project_name' ausente."}), 400
-#         proj = request.form['project_name']
-
-#         cat_col = (request.form.get('category_column') or 'label').strip()
-#         explicit_order_csv = (request.form.get('category_order') or '').strip()
-
-#         # CSVs para Samples e descoberta de categorias
-#         rd_ss_csv_folder_path = (request.form.get('rd_ss_csv_folder_path') or '').strip()
-#         lof_csv_folder_path   = (request.form.get('lof_csv_folder_path')   or '').strip()  # OPCIONAL de fato
-#         it_csv_folder_path    = (request.form.get('it_csv_folder_path')    or '').strip()
-
-#         # flag de controle: quando vazio, ocultar LOF de TODAS as saídas deste endpoint
-#         SHOW_LOF = bool(lof_csv_folder_path)
-
-#         # ------------------ 2) saída ------------------
-#         base = os.path.join('.', 'projs', proj, '13_statistical_summary')
-#         os.makedirs(base, exist_ok=True)
-
-#         # ------------------ 3) entrada ------------------
-#         data_dir_12 = os.path.join('.', 'projs', proj, '12_method', 'data')
-#         pattern = os.path.join(data_dir_12, 'data_*_to_*_categorized_summary.csv')
-#         files = glob.glob(pattern)
-#         if not files:
-#             return jsonify({"message": "Nenhum arquivo categorized_summary encontrado."}), 404
-
-#         # ------------------ 4) concat ------------------
-#         dfs = []
-#         for path in files:
-#             fname = os.path.basename(path)
-#             try:
-#                 parts = fname.split('_to_')
-#                 it_str = parts[1].split('_')[0]
-#                 it = int(it_str)
-#             except Exception:
-#                 continue
-#             df = pd.read_csv(path)
-#             df.insert(0, 'iteration_number', it)
-#             dfs.append(df)
-#         if not dfs:
-#             return jsonify({"message": 'Nenhum arquivo válido para concatenação.'}), 404
-
-#         all_df = pd.concat(dfs, ignore_index=True)
-
-#         # ------------------ 5) coluna de categoria ------------------
-#         if cat_col not in all_df.columns:
-#             return jsonify({
-#                 "message": f"Coluna de categoria '{cat_col}' não encontrada. Colunas disponíveis: {list(all_df.columns)}"
-#             }), 400
-
-#         # ------------------ helpers ------------------
-#         def normalize_all(v: str) -> str:
-#             s = str(v).strip()
-#             return 'ALL' if s.upper() == 'ALL' else s
-
-#         def sort_alpha_with_all_last(values_iterable):
-#             vals = [normalize_all(v) for v in values_iterable if pd.notna(v)]
-#             has_all = any(v == 'ALL' for v in vals)
-#             base_vals = [v for v in vals if v != 'ALL']
-#             base_vals_sorted = sorted(base_vals, key=str.casefold)
-#             return base_vals_sorted + (['ALL'] if has_all else [])
-
-#         def _norm_step(s: str) -> str:
-#             return re.sub(r'\s+', ' ', str(s).strip().lower())
-
-#         # ------------------ 6) categorias (UNIÃO) ------------------
-#         present_labels = list(pd.unique(all_df[cat_col].astype(str).map(normalize_all)))
-
-#         explicit_labels = []
-#         if explicit_order_csv:
-#             explicit_labels = [normalize_all(x) for x in explicit_order_csv.split(',') if x.strip()]
-
-#         source_labels = []
-#         if rd_ss_csv_folder_path:
-#             src_csv = os.path.join(rd_ss_csv_folder_path, 'data.csv')
-#             if os.path.isfile(src_csv):
-#                 try:
-#                     src = pd.read_csv(src_csv)
-#                     if cat_col in src.columns:
-#                         source_labels = list(pd.unique(src[cat_col].astype(str).map(normalize_all)))
-#                 except Exception:
-#                     pass
-
-#         union_set = set(present_labels) | set(source_labels) | set(explicit_labels)
-#         if explicit_labels:
-#             exp_no_all = [x for x in explicit_labels if x != 'ALL']
-#             exp_has_all = any(x == 'ALL' for x in explicit_labels)
-#             missing = sorted([x for x in union_set if x not in explicit_labels and x != 'ALL'], key=str.casefold)
-#             categories = exp_no_all + missing + (['ALL'] if ('ALL' in union_set) else [])
-#             if exp_has_all and 'ALL' not in categories:
-#                 categories.append('ALL')
-#         else:
-#             categories = sort_alpha_with_all_last(union_set)
-
-#         all_df[cat_col] = all_df[cat_col].astype(str).map(normalize_all)
-#         all_df[cat_col] = pd.Categorical(all_df[cat_col], categories=categories, ordered=True)
-
-#         # ------------------ 7) categorized_summary.csv ------------------
-#         all_df.sort_values(by=['iteration_number', cat_col], inplace=True)
-#         all_df.reset_index(drop=True, inplace=True)
-#         categorized_csv = os.path.join(base, 'categorized_summary.csv')
-#         all_df.to_csv(categorized_csv, index=False)
-
-#         iteration_numbers = sorted(map(int, pd.unique(all_df['iteration_number'])))
-
-#         # ------------------ 8) totals_summary.csv ------------------
-#         mask_all = all_df[cat_col].astype(str) == 'ALL'
-#         if not mask_all.any():
-#             return jsonify({"message": "Nenhuma linha 'ALL' encontrada para compor o totals_summary."}), 400
-
-#         totals_df = all_df[mask_all].copy()
-#         totals_df = totals_df.drop(columns=[cat_col], errors='ignore')
-#         totals_df.sort_values(by='iteration_number', inplace=True)
-#         totals_df.reset_index(drop=True, inplace=True)
-
-#         totals_csv = os.path.join(base, 'totals_summary.csv')
-#         totals_df.to_csv(totals_csv, index=False)
-
-#         # ------------------ 9) totals_summary.pdf ------------------
-#         from reportlab.lib.pagesizes import letter as _LETTER
-#         totals_pdf_path = os.path.join(base, 'totals_summary.pdf')
-#         doc_totals = SimpleDocTemplate(totals_pdf_path, pagesize=_LETTER)
-#         styles = getSampleStyleSheet()
-#         story_totals = []
-#         story_totals.append(Paragraph("Totals Summary", styles['Heading2']))
-#         story_totals.append(Spacer(1, 12))
-
-#         col_headers = [
-#             'Interaction Number',
-#             'Total',
-#             'Kept (qt)',
-#             'Kept (%)',
-#             'Removed (qt)',
-#             'Removed (%)',
-#             'Flagged (qt)',
-#             'Flagged (%)'
-#         ]
-#         table_data = [col_headers]
-
-#         required_cols = ['iteration_number', 'total', 'kept (qt)', 'kept (%)',
-#                          'removed (qt)', 'removed (%)', 'flagged (qt)', 'flagged (%)']
-#         missing = [c for c in required_cols if c not in totals_df.columns]
-#         if missing:
-#             return jsonify({"message": f"Colunas ausentes em totals_summary: {missing}"}), 400
-
-#         for _, row in totals_df.iterrows():
-#             table_data.append([
-#                 int(row['iteration_number']),
-#                 int(row['total']),
-#                 int(row['kept (qt)']),
-#                 f"{float(row['kept (%)']):.2f}",
-#                 int(row['removed (qt)']),
-#                 f"{float(row['removed (%)']):.2f}",
-#                 int(row['flagged (qt)']),
-#                 f"{float(row['flagged (%)']):.2f}",
-#             ])
-
-#         page_width = _LETTER[0] - 2 * 36
-#         first_col = page_width * 0.20
-#         other_col = (page_width - first_col) / (len(col_headers) - 1)
-#         col_widths = [first_col] + [other_col] * (len(col_headers) - 1)
-
-#         tbl = Table(table_data, colWidths=col_widths, repeatRows=1)
-#         tbl.setStyle(TableStyle([
-#             ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
-#             ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-#             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-#             ('ALIGN', (0, 1), (-1, -1), 'CENTER'),
-#             ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-#             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-#         ]))
-#         story_totals.append(tbl)
-#         doc_totals.build(story_totals)
-
-#         # ------------------ 10) clusters.pdf ------------------
-#         clusters_pdf_path = os.path.join(base, 'clusters.pdf')
-#         doc_clusters = SimpleDocTemplate(clusters_pdf_path, pagesize=_LETTER)
-#         story_clusters = []
-#         for idx, it in enumerate(iteration_numbers):
-#             story_clusters.append(Paragraph(f"Cluster formed at interaction number: {it}", styles['Heading2']))
-#             story_clusters.append(Spacer(1, 12))
-#             img_path = os.path.join('.', 'projs', proj, '12_method', 'step_02', f'cluster_{it}', 'cluster.png')
-#             if os.path.isfile(img_path):
-#                 pil_img = PILImage.open(img_path)
-#                 orig_w, orig_h = pil_img.size
-#                 max_width = _LETTER[0] - 2 * inch
-#                 aspect = orig_h / orig_w
-#                 calc_height = max_width * aspect
-#                 img = RLImage(img_path, width=max_width, height=calc_height)
-#                 story_clusters.append(img)
-#             else:
-#                 story_clusters.append(Paragraph(f"Imagem não encontrada: {img_path}", styles['Normal']))
-#             if idx < len(iteration_numbers) - 1:
-#                 story_clusters.append(PageBreak())
-#         doc_clusters.build(story_clusters)
-
-#         # ------------------ 11) concatenated_results.txt ------------------
-#         concatenated_txt_path = os.path.join(base, 'concatenated_results.txt')
-#         with open(concatenated_txt_path, 'w', encoding='utf-8') as fout:
-#             # Raw Data
-#             rd_txt = os.path.join('.', 'projs', proj, '00_preprocessing', 'evaluate_results_on_original_data', 'results.txt')
-#             if os.path.isfile(rd_txt):
-#                 fout.write(
-#                     "\n\n"
-#                     "##################################################################\n"
-#                     "########  Results on Raw Data - start ########\n"
-#                     "##################################################################\n\n"
-#                 )
-#                 with open(rd_txt, 'r', encoding='utf-8') as fin_rd:
-#                     fout.write(fin_rd.read())
-#                 fout.write(
-#                     "\n\n"
-#                     "##################################################################\n"
-#                     "########  Results on Raw Data - end ########\n"
-#                     "##################################################################\n\n"
-#                 )
-
-#             # Standard Scaler / LOF / Optional Clipping
-#             std_txt = os.path.join('.', 'projs', proj, '02_evaluate_results_after_standard_scaler', 'results.txt')
-#             lof_txt = os.path.join('.', 'projs', proj, '04_evaluate_results_after_lof', 'results.txt')
-#             clip_txt = os.path.join('.', 'projs', proj, '06_evaluate_results_after_optional_clipping', 'results.txt')
-
-#             if os.path.isfile(std_txt):
-#                 fout.write(
-#                     "\n\n"
-#                     "##################################################################\n"
-#                     "########  Results After Standard Scaler - start ########\n"
-#                     "##################################################################\n\n"
-#                 )
-#                 with open(std_txt, 'r', encoding='utf-8') as fin_std:
-#                     fout.write(fin_std.read())
-#                 fout.write(
-#                     "\n\n"
-#                     "##################################################################\n"
-#                     "########  Results After Standard Scaler - end ########\n"
-#                     "##################################################################\n\n"
-#                 )
-
-#             # >>>>>>> MOSTRAR LOF SOMENTE SE lof_csv_folder_path FOI INFORMADO <<<<<<<
-#             if SHOW_LOF and os.path.isfile(lof_txt):
-#                 fout.write(
-#                     "\n\n"
-#                     "##################################################################\n"
-#                     "########  Results After LOF - start ########\n"
-#                     "##################################################################\n\n"
-#                 )
-#                 with open(lof_txt, 'r', encoding='utf-8') as fin_lof:
-#                     fout.write(fin_lof.read())
-#                 fout.write(
-#                     "\n\n"
-#                     "##################################################################\n"
-#                     "########  Results After LOF - end ########\n"
-#                     "##################################################################\n\n"
-#                 )
-
-#             if os.path.isfile(clip_txt):
-#                 fout.write(
-#                     "\n\n"
-#                     "##################################################################\n"
-#                     "########  Results After Optional Clipping - start ########\n"
-#                     "##################################################################\n\n"
-#                 )
-#                 with open(clip_txt, 'r', encoding='utf-8') as fin_clip:
-#                     fout.write(fin_clip.read())
-#                 fout.write(
-#                     "\n\n"
-#                     "##################################################################\n"
-#                     "########  Results After Optional Clipping - end ########\n"
-#                     "##################################################################\n\n"
-#                 )
-
-#             # Iterações (não-turbo e TURBO)
-#             for it in iteration_numbers:
-#                 header_line = (
-#                     "\n\n"
-#                     "##################################################################\n"
-#                     f"########  Results for iteration number {it} - start ########\n"
-#                     "##################################################################\n\n"
-#                 )
-#                 fout.write(header_line)
-
-#                 results_txt_path = os.path.join('.', 'projs', proj, '12_method', 'step_04', f'results_{it}', 'results.txt')
-#                 if os.path.isfile(results_txt_path):
-#                     with open(results_txt_path, 'r', encoding='utf-8') as fin:
-#                         fout.write(fin.read())
-#                 else:
-#                     fout.write(f"[Arquivo não encontrado: {results_txt_path}]\n")
-
-#                 footer_line = (
-#                     "\n\n"
-#                     "##################################################################\n"
-#                     f"########  Results for iteration number {it} - end ########\n"
-#                     "##################################################################\n\n"
-#                 )
-#                 fout.write(footer_line)
-
-#                 results_txt_turbo = os.path.join('.', 'projs', proj, '12_method', 'step_04', f'results_{it}_turbo', 'results.txt')
-#                 if os.path.isfile(results_txt_turbo):
-#                     turbo_header = (
-#                         "\n\n"
-#                         "##################################################################\n"
-#                         f"########  Results for iteration number {it} (TURBO) - start ########\n"
-#                         "##################################################################\n\n"
-#                     )
-#                     fout.write(turbo_header)
-#                     with open(results_txt_turbo, 'r', encoding='utf-8') as fin_turbo:
-#                         fout.write(fin_turbo.read())
-#                     turbo_footer = (
-#                         "\n\n"
-#                         "##################################################################\n"
-#                         f"########  Results for iteration number {it} (TURBO) - end ########\n"
-#                         "##################################################################\n\n"
-#                     )
-#                     fout.write(turbo_footer)
-
-#         # ------------------ 11.6) Samples por CSV ------------------
-#         def _count_rows_csv(csv_path: str):
-#             try:
-#                 if os.path.isfile(csv_path):
-#                     df = pd.read_csv(csv_path)
-#                     return len(df)
-#             except Exception:
-#                 return None
-#             return None
-
-#         def _samples_from_csv_sources(project_name: str, iters: list[int]) -> dict:
-#             """
-#             Retorna um dicionário *normalizado* (via _norm_step) com:
-#               'results on raw data' -> N
-#               'results after standard scaler' -> N
-#               'results after lof' -> N
-#               'results for iteration number <n>' -> N
-#               'results for iteration number <n> (turbo)' -> N
-#             """
-#             smap = {}
-
-#             # RD/SS
-#             if rd_ss_csv_folder_path:
-#                 rdss_csv = os.path.join(rd_ss_csv_folder_path, 'data.csv')
-#                 n = _count_rows_csv(rdss_csv)
-#                 if isinstance(n, int):
-#                     smap[_norm_step('Results on Raw Data')] = n
-#                     smap[_norm_step('Results After Standard Scaler')] = n
-
-#             # LOF (só se informado)
-#             if SHOW_LOF and lof_csv_folder_path:
-#                 pattern_lof = os.path.join(lof_csv_folder_path, f"*_{project_name}_lof*.csv")
-#                 lof_candidates = glob.glob(pattern_lof)
-#                 if lof_candidates:
-#                     latest = max(lof_candidates, key=lambda p: os.path.getmtime(p))
-#                     n = _count_rows_csv(latest)
-#                     if isinstance(n, int):
-#                         smap[_norm_step('Results After LOF')] = n
-
-#             # Iterações
-#             it_base = it_csv_folder_path if it_csv_folder_path else os.path.join('.', 'projs', project_name, '12_method', 'data')
-#             for itn in iters:
-#                 csv_it = os.path.join(it_base, f'data_{itn}.csv')
-#                 n = _count_rows_csv(csv_it)
-#                 if isinstance(n, int):
-#                     smap[_norm_step(f'Results for iteration number {itn}')] = n
-#                     smap[_norm_step(f'Results for iteration number {itn} (TURBO)')] = n
-
-#             return smap
-
-#         samples_map_csv = _samples_from_csv_sources(proj, iteration_numbers)
-
-#         # ------------------ 11.6-b) Parser dos blocos -> (Step, Samples, Acc) ------------------
-#         def parse_steps_samples_accuracy_from_concatenated(txt_path: str, totals_df_for_fallback: pd.DataFrame, smap_csv: dict):
-#             rows = []
-#             if not os.path.isfile(txt_path):
-#                 return rows
-
-#             with open(txt_path, 'r', encoding='utf-8') as f:
-#                 lines = f.readlines()
-
-#             step_start_line_re = re.compile(r"^########\s+(.*?)\s+- start ########\s*$")
-#             step_end_line_re   = re.compile(r"^########\s+(.*?)\s+- end ########\s*$")
-
-#             it_total_map = {int(r['iteration_number']): int(r['total']) for _, r in totals_df_for_fallback.iterrows()}
-#             first_total = it_total_map[sorted(it_total_map.keys())[0]] if it_total_map else None
-
-#             def _fallback_samples_for_step(step_name: str):
-#                 m_it = re.search(r'iteration number\s+(\d+)', step_name, flags=re.I)
-#                 if m_it:
-#                     itn = int(m_it.group(1))
-#                     return it_total_map.get(itn, first_total)
-#                 return first_total
-
-#             i = 0
-#             while i < len(lines):
-#                 line = lines[i].rstrip('\n')
-#                 m = step_start_line_re.match(line)
-#                 if m:
-#                     current_step = m.group(1)
-#                     samples_val = smap_csv.get(_norm_step(current_step))
-
-#                     block = []
-#                     i += 1
-#                     while i < len(lines):
-#                         l2 = lines[i].rstrip('\n')
-#                         if step_end_line_re.match(l2):
-#                             acc_val = None
-#                             for bl in block:
-#                                 if 'Accuracy Mean' in bl:
-#                                     nums = re.findall(r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?%?", bl)
-#                                     perc = None
-#                                     for tok in reversed(nums):
-#                                         if tok.endswith('%'):
-#                                             perc = float(tok.strip('%')); break
-#                                     if perc is None:
-#                                         for tok in reversed(nums):
-#                                             if not tok.endswith('%'):
-#                                                 try:
-#                                                     perc = float(tok) * 100.0; break
-#                                                 except: pass
-#                                     acc_val = perc
-#                                     break
-
-#                             if samples_val is None:
-#                                 for bl in block:
-#                                     if re.search(r'\bSamples?\b', bl, flags=re.I) or re.search(r'\bN\s*=\s*\d+', bl, flags=re.I):
-#                                         mnum = re.search(r'[-+]?\d[\d,.]*', bl)
-#                                         if mnum:
-#                                             samples_val = int(mnum.group(0).replace('.', '').replace(',', ''))
-#                                             break
-#                             if samples_val is None:
-#                                 samples_val = _fallback_samples_for_step(current_step)
-
-#                             rows.append((current_step, samples_val, acc_val))
-#                             break
-#                         else:
-#                             block.append(l2)
-#                         i += 1
-#                 i += 1
-#             return rows
-
-#         perf_rows = parse_steps_samples_accuracy_from_concatenated(
-#             os.path.join(base, 'concatenated_results.txt'),
-#             totals_df_for_fallback=totals_df,
-#             smap_csv=samples_map_csv
-#         )
-
-#         # ------------------ 11.6-c) method_performance.pdf ------------------
-#         method_perf_pdf_path = os.path.join(base, 'method_performance.pdf')
-#         try:
-#             doc_mp = SimpleDocTemplate(method_perf_pdf_path, pagesize=letter)
-#             styles = getSampleStyleSheet()
-#             centered_h2 = ParagraphStyle('CenteredH2', parent=styles['Heading2'], alignment=1)
-
-#             story_mp = []
-#             story_mp.append(Paragraph("Method Performance", centered_h2))
-#             story_mp.append(Spacer(1, 6))
-
-#             table_data_mp = [["Step", "Samples", "Removed", "Acc Mean"]]
-
-#             baseline_samples = None
-#             for _, s, _ in perf_rows:
-#                 if isinstance(s, int):
-#                     baseline_samples = s
-#                     break
-
-#             def _fmt_removed(samples: int) -> str:
-#                 if not isinstance(samples, int) or not isinstance(baseline_samples, int) or baseline_samples <= 0:
-#                     return "—"
-#                 pct = max(0.0, (1.0 - (samples / baseline_samples)) * 100.0)
-#                 return f"{pct:.2f}%"
-
-#             for step, samples, acc in perf_rows:
-#                 acc_disp = f"{acc:.2f}%" if isinstance(acc, (int, float)) and acc is not None else "—"
-#                 samp_disp = f"{samples:,}".replace(',', '.') if isinstance(samples, int) else "—"
-#                 removed_disp = "0.00%" if step.lower().startswith("results on raw data") else _fmt_removed(samples)
-#                 table_data_mp.append([step, samp_disp, removed_disp, acc_disp])
-
-#             pg_w = letter[0] - 2 * 36
-#             col_w1 = pg_w * 0.50  # Step
-#             col_w2 = pg_w * 0.15  # Samples
-#             col_w3 = pg_w * 0.15  # Removed
-#             col_w4 = pg_w * 0.20  # Acc Mean
-#             tbl_mp = Table(table_data_mp, colWidths=[col_w1, col_w2, col_w3, col_w4])
-#             tbl_mp.setStyle(TableStyle([
-#                 ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
-#                 ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-#                 ('ALIGN', (0, 1), (0, -1), 'LEFT'),
-#                 ('ALIGN', (1, 1), (-1, -1), 'CENTER'),
-#                 ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-#                 ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-#                 ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-#             ]))
-#             story_mp.append(tbl_mp)
-
-#             doc_mp.build(story_mp)
-#         except Exception:
-#             pass
-
-#         # ------------------ 11.6-d) method_performance.tex (NOVO) ------------
-#         method_perf_tex_path = os.path.join(base, 'method_performance.tex')
-#         try:
-#             if perf_rows:
-#                 def _latex_escape(s: str) -> str:
-#                     rep = {
-#                         '\\': r'\textbackslash{}',
-#                         '&': r'\&',
-#                         '%': r'\%',
-#                         '$': r'\$',
-#                         '#': r'\#',
-#                         '_': r'\_',
-#                         '{': r'\{',
-#                         '}': r'\}',
-#                         '~': r'\textasciitilde{}',
-#                         '^': r'\textasciicircum{}',
-#                     }
-#                     out = str(s)
-#                     for k, v in rep.items():
-#                         out = out.replace(k, v)
-#                     return out
-
-#                 baseline_samples = None
-#                 for _, s, _ in perf_rows:
-#                     if isinstance(s, int):
-#                         baseline_samples = s
-#                         break
-
-#                 def _fmt_removed_raw(samples: int):
-#                     if not isinstance(samples, int) or not isinstance(baseline_samples, int) or baseline_samples <= 0:
-#                         return None  # representa "—"
-#                     pct = max(0.0, (1.0 - (samples / baseline_samples)) * 100.0)
-#                     return f"{pct:.2f}"
-
-#                 def _build_abbrev_step_label(step_raw: str) -> str:
-#                     s = step_raw.strip()
-#                     low = s.lower()
-#                     if low.startswith('results on raw data'):
-#                         abbr = 'RD'
-#                     elif low.startswith('results after standard scaler'):
-#                         abbr = 'SS'
-#                     elif low.startswith('results after optional clipping'):
-#                         abbr = 'OC'
-#                     else:
-#                         m = re.search(r'results for iteration number\s+(\d+)', low)
-#                         if m:
-#                             n = m.group(1)
-#                             if '(turbo)' in low:
-#                                 abbr = f"It.{n}T"
-#                             else:
-#                                 abbr = f"It.{n}"
-#                         else:
-#                             words = re.findall(r'[A-Za-z]+', s)
-#                             if words:
-#                                 abbr = ''.join(w[0].upper() for w in words[:3])
-#                             else:
-#                                 abbr = 'STP'
-#                     return f"{abbr} : {s}"
-
-#                 lines = []
-#                 lines.append(r"\begin{table}[H]")
-#                 lines.append(r"\centering")
-#                 cap_proj = _latex_escape(proj)
-#                 lines.append(
-#                     rf"\caption{{Method performance for project \texttt{{{cap_proj}}}.}}"
-#                 )
-#                 lines.append(r"\label{tab:method_performance}")
-#                 lines.append(r"\begin{tabular}{lrrr}")
-#                 lines.append(r"\hline")
-#                 lines.append(r"Abbreviation : Step & Samples & Removed & Acc Mean \\")
-#                 lines.append(r"\hline")
-
-#                 for step, samples, acc in perf_rows:
-#                     if 'results after lof' in step.strip().lower():
-#                         continue
-
-#                     step_disp = _build_abbrev_step_label(step)
-#                     step_tex = _latex_escape(step_disp)
-
-#                     if isinstance(samples, int):
-#                         samp_disp = f"{samples:,}".replace(",", ".")
-#                     else:
-#                         samp_disp = "—"
-#                     samp_tex = _latex_escape(samp_disp)
-
-#                     if isinstance(samples, int) and step.lower().startswith("results on raw data"):
-#                         rem_raw = "0.00"
-#                     else:
-#                         rem_raw = _fmt_removed_raw(samples)
-#                     if rem_raw is None:
-#                         rem_tex = "—"
-#                     else:
-#                         rem_tex = _latex_escape(rem_raw) + r"\%"
-
-#                     if isinstance(acc, (int, float)) and acc is not None:
-#                         acc_raw = f"{acc:.2f}"
-#                         acc_tex = _latex_escape(acc_raw) + r"\%"
-#                     else:
-#                         acc_tex = "—"
-
-#                     lines.append(
-#                         f"{step_tex} & {samp_tex} & {rem_tex} & {acc_tex} \\\\"
-#                     )
-
-#                 lines.append(r"\hline")
-#                 lines.append(r"\end{tabular}")
-#                 lines.append(r"\end{table}")
-
-#                 with open(method_perf_tex_path, "w", encoding="utf-8") as f_tex:
-#                     f_tex.write("\n".join(lines))
-#         except Exception:
-#             pass
-
-#         # ------------------ 11.7) method_performance.png ------------------
-#         rd_txt_path  = os.path.join('.', 'projs', proj, '00_preprocessing', 'evaluate_results_on_original_data', 'results.txt')
-#         ss_txt_path  = os.path.join('.', 'projs', proj, '02_evaluate_results_after_standard_scaler', 'results.txt')
-#         lof_txt_path = os.path.join('.', 'projs', proj, '04_evaluate_results_after_lof', 'results.txt')
-
-#         def _extract_acc_mean(txt_path):
-#             if not os.path.isfile(txt_path):
-#                 return None
-#             with open(txt_path, 'r', encoding='utf-8') as f:
-#                 for line in f:
-#                     if 'Accuracy Mean' in line:
-#                         parts = line.split('|')
-#                         if len(parts) >= 3:
-#                             try:
-#                                 return float(parts[2].strip()) * 100.0
-#                             except:
-#                                 return None
-#             return None
-
-#         rd_value = _extract_acc_mean(rd_txt_path)
-#         ss_value = _extract_acc_mean(ss_txt_path)
-#         lof_value = _extract_acc_mean(lof_txt_path) if SHOW_LOF else None
-
-#         final_perf = []
-#         labels_perf = []
-#         if rd_value is not None:
-#             final_perf.append(rd_value); labels_perf.append('RD')
-#         if ss_value is not None:
-#             final_perf.append(ss_value); labels_perf.append('SS')
-#         if SHOW_LOF and (lof_value is not None):
-#             final_perf.append(lof_value); labels_perf.append('LOF')
-#         for it in iteration_numbers:
-#             nt_path = os.path.join('.', 'projs', proj, '12_method', 'step_04', f'results_{it}', 'results.txt')
-#             val_nt = _extract_acc_mean(nt_path)
-#             if val_nt is not None:
-#                 final_perf.append(val_nt); labels_perf.append(f"It.{it}")
-#         for it in iteration_numbers:
-#             tb_path = os.path.join('.', 'projs', proj, '12_method', 'step_04', f'results_{it}_turbo', 'results.txt')
-#             val_t = _extract_acc_mean(tb_path)
-#             if val_t is not None:
-#                 final_perf.append(val_t); labels_perf.append(f"It.{it}T")
-
-#         perf_png_path = os.path.join(base, 'method_performance.png')
-#         perf_small_png_path = os.path.join(base, 'method_performance_small.png')
-
-#         if final_perf:
-#             x_positions = list(range(len(final_perf)))
-
-#             plt.figure(figsize=(20, 5))
-#             ax = plt.gca()
-#             ax.plot(x_positions, final_perf, marker='o', linestyle='-')
-#             ax.set_xticks(x_positions)
-#             ax.set_xticklabels(labels_perf)
-#             ax.set_title(f"Project {proj} - Accuracy Performance")
-#             ax.set_ylabel("Accuracy Mean (%)", rotation=90)
-#             ax.set_xlabel("Steps")
-#             ax.grid(True)
-
-#             legend_text = (
-#                 "LEGEND\n\n"
-#                 "RD: Raw Data\n"
-#                 "SS: Data after Standard Scaling\n"
-#                 + ("LOF: Data after Local Outliers Factor\n" if SHOW_LOF else "")
-#                 + "It.N: Nth Iteration (non-turbo)\n"
-#                   "It.NT: Nth Iteration (TURBO)"
-#             )
-#             ax.text(1.02, 0.98, legend_text, transform=ax.transAxes,
-#                     va='top', ha='left', fontsize=9, family='monospace')
-
-#             best_val = max(final_perf)
-#             best_idx = final_perf.index(best_val)
-#             best_label = labels_perf[best_idx]
-#             ax.plot(best_idx, best_val, marker='o', color='red', markersize=8)
-#             best_text = f"Best Accuracy = {best_val:.2f}%, at {best_label}"
-#             ax.text(1.02, 0.70, best_text, transform=ax.transAxes,
-#                     color='red', fontweight='bold', va='top', ha='left', fontsize=9)
-
-#             try:
-#                 if perf_rows:
-#                     baseline_samples = None
-#                     for _, s, _ in perf_rows:
-#                         if isinstance(s, int):
-#                             baseline_samples = s
-#                             break
-
-#                     def _fmt_removed(samples: int) -> str:
-#                         if not isinstance(samples, int) or not isinstance(baseline_samples, int) or baseline_samples <= 0:
-#                             return "—"
-#                         pct = max(0.0, (1.0 - (samples / baseline_samples)) * 100.0)
-#                         return f"{pct:.2f}%"
-
-#                     def _compact_step_label_for_png(step_raw: str) -> str:
-#                         s = step_raw.strip().lower()
-#                         if s.startswith('results on raw data'):
-#                             return 'Raw Data'
-#                         if s.startswith('results after standard scaler'):
-#                             return 'After S.S.'
-#                         if s.startswith('results after lof'):
-#                             return 'After LOF'
-#                         m = re.search(r'results for iteration number\s+(\d+)', s)
-#                         if m:
-#                             n = m.group(1)
-#                             return f"It {n} (Turbo)" if '(turbo)' in s else f"It {n}"
-#                         return step_raw
-
-#                     fig = plt.gcf()
-#                     right_ax = fig.add_axes([0.82, 0.10, 0.17, 0.82])
-#                     right_ax.axis('off')
-
-#                     data_tbl = [["Step", "Samples", "Rem%", "ACC M%"]]
-#                     first = True
-#                     for step, samples, acc in perf_rows:
-#                         acc_disp = f"{acc:.2f}%" if isinstance(acc, (int, float)) and acc is not None else "—"
-#                         samp_disp = f"{samples:,}".replace(',', '.') if isinstance(samples, int) else "—"
-#                         removed_disp = "0.00%" if first else _fmt_removed(samples)
-#                         first = False
-#                         data_tbl.append([
-#                             _compact_step_label_for_png(step),
-#                             samp_disp,
-#                             removed_disp,
-#                             acc_disp
-#                         ])
-
-#                     table = right_ax.table(cellText=data_tbl,
-#                                            colWidths=[0.23, 0.154, 0.14, 0.20],
-#                                            loc='upper left')
-#                     table.auto_set_font_size(False)
-#                     table.set_fontsize(8)
-#                     table.scale(1.0, 1.2)
-#                     for (row, col), cell in table.get_celld().items():
-#                         cell.set_edgecolor("black")
-#                         if row == 0:
-#                             cell.set_facecolor("#D3D3D3")
-#                             try: cell._text.set_ha('center')
-#                             except: pass
-#                         else:
-#                             if col == 0:
-#                                 try: cell._text.set_ha('left')
-#                                 except: pass
-#                             else:
-#                                 try: cell._text.set_ha('center')
-#                                 except: pass
-#             except Exception:
-#                 pass
-
-#             plt.tight_layout(rect=[0, 0, 0.80, 1])
-#             plt.savefig(perf_png_path)
-#             plt.close()
-
-#             try:
-#                 x_small = list(range(len(final_perf)))
-#                 plt.figure(figsize=(8, 4))
-#                 ax_small = plt.gca()
-#                 ax_small.plot(x_small, final_perf, marker='o', linestyle='-')
-#                 ax_small.set_xticks(x_small)
-#                 ax_small.set_xticklabels(labels_perf, rotation=45, ha='right')
-#                 ax_small.set_title(f"Project {proj} - Accuracy Performance")
-#                 ax_small.set_ylabel("Accuracy Mean (%)")
-#                 ax_small.set_xlabel("Steps")
-#                 ax_small.grid(True)
-
-#                 best_val = max(final_perf)
-#                 best_idx = final_perf.index(best_val)
-#                 best_label = labels_perf[best_idx]
-#                 ax_small.plot(best_idx, best_val, marker='o', color='red', markersize=7)
-#                 best_text = f"Best Accuracy = {best_val:.2f}%, at {best_label}"
-
-#                 fig_small = plt.gcf()
-#                 bbox = ax_small.get_position()
-#                 x_center = (bbox.x0 + bbox.x1) / 2.0
-#                 y_text = max(0.0, bbox.y0 - 0.06)
-#                 fig_small.text(
-#                     x_center,
-#                     y_text,
-#                     best_text,
-#                     ha='center',
-#                     va='top',
-#                     color='red',
-#                     fontweight='bold',
-#                     fontsize=9
-#                 )
-
-#                 plt.tight_layout(rect=[0, 0.12, 1, 1])
-#                 plt.savefig(perf_small_png_path, dpi=300)
-#                 plt.close()
-#             except Exception:
-#                 pass
-#         else:
-#             plt.figure(figsize=(20, 5))
-#             plt.text(0.5, 0.5, 'Nenhum dado de Accuracy Mean encontrado', ha='center', va='center')
-#             plt.axis('off')
-#             plt.savefig(perf_png_path)
-#             plt.close()
-
-#             plt.figure(figsize=(8, 4))
-#             plt.text(0.5, 0.5, 'Nenhum dado de Accuracy Mean encontrado', ha='center', va='center')
-#             plt.axis('off')
-#             plt.savefig(perf_small_png_path, dpi=300)
-#             plt.close()
-
-#         # ------------------ 12) concatenated_results.pdf ------------------
-#         concatenated_pdf_path = os.path.join(base, 'concatenated_results.pdf')
-
-#         cover_path = os.path.join(base, 'concatenated_cover_tmp.pdf')
-#         cover_doc = SimpleDocTemplate(cover_path, pagesize=letter)
-#         cover_styles = getSampleStyleSheet()
-#         cover_style = ParagraphStyle(
-#             'CoverTitle',
-#             parent=cover_styles['Title'],
-#             alignment=1,
-#             fontSize=24,
-#             textColor=colors.white,
-#             leading=28
-#         )
-
-#         def draw_cover_background(canvas, doc):
-#             canvas.saveState()
-#             canvas.setFillColor(colors.black)
-#             canvas.rect(0, 0, letter[0], letter[1], fill=1)
-#             canvas.restoreState()
-
-#         cover_story = []
-#         main_cover_title = f"PROJECT {proj.upper()} RESULTS OF PERFORMANCE WITH RANDOM FOREST"
-#         words = main_cover_title.split()
-#         broken = "<br/>".join(words)
-#         cover_story.append(Spacer(1, letter[1] / 2 - 14))
-#         cover_story.append(Paragraph(broken, cover_style))
-#         cover_doc.build(cover_story, onFirstPage=draw_cover_background)
-
-#         writer = PdfWriter()
-#         writer.addpages(PdfReader(cover_path).pages)
-
-#         def _safe_name(s: str) -> str:
-#             return re.sub(r'[^A-Za-z0-9_.-]+', '_', s)[:80]
-
-#         def _add_section_with_cover(section_title: str, section_pdf_path: str):
-#             if not os.path.isfile(section_pdf_path):
-#                 return
-#             full_section_title = f"PROJECT {proj.upper()} {section_title}"
-#             words = full_section_title.split()
-#             broken_title = "<br/>".join(words)
-#             tmp_cover = os.path.join(base, f'cover_{_safe_name(section_title)}_{uuid.uuid4().hex}.pdf')
-
-#             created = False
-#             try:
-#                 tmp_doc = SimpleDocTemplate(tmp_cover, pagesize=letter)
-#                 tmp_story = [Spacer(1, letter[1] / 2 - 14), Paragraph(broken_title, cover_style)]
-#                 tmp_doc.build(tmp_story, onFirstPage=draw_cover_background)
-#                 if os.path.isfile(tmp_cover):
-#                     created = True
-#                     writer.addpages(PdfReader(tmp_cover).pages)
-
-#                 reader_sec = PdfReader(section_pdf_path)
-#                 if len(reader_sec.pages) > 1:
-#                     writer.addpages(reader_sec.pages[1:])
-#                 else:
-#                     writer.addpages(reader_sec.pages)
-#             except Exception:
-#                 try:
-#                     reader_sec = PdfReader(section_pdf_path)
-#                     writer.addpages(reader_sec.pages)
-#                 except Exception:
-#                     pass
-#             finally:
-#                 if created:
-#                     try: os.remove(tmp_cover)
-#                     except Exception: pass
-
-#         rd_pdf = os.path.join('.', 'projs', proj, '00_preprocessing', 'evaluate_results_on_original_data', 'results.pdf')
-#         if os.path.isfile(rd_pdf):
-#             _add_section_with_cover("Results on Raw Data", rd_pdf)
-
-#         std_pdf = os.path.join('.', 'projs', proj, '02_evaluate_results_after_standard_scaler', 'results.pdf')
-#         if os.path.isfile(std_pdf):
-#             _add_section_with_cover("Results after Standard Scaler", std_pdf)
-
-#         lof_pdf = os.path.join('.', 'projs', proj, '04_evaluate_results_after_lof', 'results.pdf')
-#         if SHOW_LOF and os.path.isfile(lof_pdf):
-#             _add_section_with_cover("Results after Local Outlier Factor", lof_pdf)
-
-#         clip_pdf = os.path.join('.', 'projs', proj, '06_evaluate_results_after_optional_clipping', 'results.pdf')
-#         if os.path.isfile(clip_pdf):
-#             _add_section_with_cover("Results after Optional Clipping", clip_pdf)
-
-#         for it in iteration_numbers:
-#             results_pdf_path = os.path.join('.', 'projs', proj, '12_method', 'step_04', f'results_{it}', 'results.pdf')
-#             if os.path.isfile(results_pdf_path):
-#                 _add_section_with_cover(f"Results after Bayesian Exclusion number {it}", results_pdf_path)
-#             results_pdf_turbo = os.path.join('.', 'projs', proj, '12_method', 'step_04', f'results_{it}_turbo', 'results.pdf')
-#             if os.path.isfile(results_pdf_turbo):
-#                 _add_section_with_cover(f"Results after Bayesian Exclusion number {it} (TURBO)", results_pdf_turbo)
-
-#         writer.write(concatenated_pdf_path)
-#         try: os.remove(cover_path)
-#         except Exception: pass
-
-#         # =====================================================================
-#         # ========================= BLOCO: final_summary.pdf ===================
-#         # =====================================================================
-
-#         def _display_step_label(step_raw: str) -> str:
-#             s = re.sub(r'(?i)\bresults\b', '', step_raw).strip()
-#             s = re.sub(r'\s+', ' ', s)
-#             s = re.sub(r'\s*\((?i:TURBO)\)', '<br/>(TURBO)', s)
-#             return s
-
-#         def _load_lof_summary_table():
-#             if not SHOW_LOF:
-#                 return None
-#             try:
-#                 path = os.path.join(lof_csv_folder_path, 'data_o_to_0_categorized_summary.csv')
-#                 if not os.path.isfile(path):
-#                     return None
-#                 df = pd.read_csv(path)
-#                 return df
-#             except Exception:
-#                 return None
-
-#         def _load_iteration_summary_table(iteration_n: int):
-#             try:
-#                 path = os.path.join(it_csv_folder_path, f"data_{iteration_n-1}_to_{iteration_n}_categorized_summary.csv")
-#                 if not os.path.isfile(path):
-#                     return None
-#                 df = pd.read_csv(path)
-#                 for c in ('flagged (qt)', 'flagged (%)'):
-#                     if c in df.columns:
-#                         df = df.drop(columns=[c])
-#                 return df
-#             except Exception:
-#                 return None
-
-#         A4_PAGE = A4
-#         small_font = 7
-#         styles = getSampleStyleSheet()
-#         p_step = ParagraphStyle('StepCell', parent=styles['Normal'], alignment=TA_LEFT,
-#                                 fontSize=small_font, leading=small_font+1, spaceAfter=0, wordWrap='CJK')
-#         p_hdr  = ParagraphStyle('HdrCell',  parent=styles['Normal'], alignment=TA_CENTER,
-#                                 fontSize=small_font, leading=small_font+1, spaceAfter=0)
-#         p_cell = ParagraphStyle('ValCell',  parent=styles['Normal'], alignment=TA_CENTER,
-#                                 fontSize=small_font, leading=small_font+1, spaceAfter=0, wordWrap='CJK')
-#         p_cat  = ParagraphStyle('CatCell',  parent=styles['Normal'], alignment=TA_LEFT,
-#                                 fontSize=small_font, leading=small_font+1, spaceAfter=0, wordWrap='CJK')
-
-#         def _text_width(text: str, font_name='Helvetica', font_size=small_font):
-#             try:
-#                 return pdfmetrics.stringWidth(text, font_name, font_size)
-#             except Exception:
-#                 return len(text) * (font_size * 0.4)
-
-#         def _make_inner_table(df_in: pd.DataFrame, cat_colname: str):
-#             if df_in is None or df_in.empty:
-#                 t = Table([["—"]], colWidths=[40])
-#                 t.setStyle(TableStyle([
-#                     ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-#                     ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-#                     ('FONTSIZE', (0,0), (-1,-1), small_font),
-#                     ('GRID', (0,0), (-1,-1), 0.3, colors.black),
-#                 ]))
-#                 return t, 40.0
-
-#             df = df_in.copy()
-#             new_cols = []
-#             percent_cols = set()
-#             for c in df.columns:
-#                 nc = c
-#                 if '(%)' in nc: nc = nc.replace(' (%)', '%')
-#                 if '(qt)' in nc: nc = nc.replace(' (qt)', '')
-#                 if nc == cat_colname:
-#                     hdr_final = cat_colname
-#                 else:
-#                     hdr_final = nc[:1].upper() + nc[1:]
-#                 new_cols.append(hdr_final)
-#                 if nc.endswith('%'):
-#                     percent_cols.add(hdr_final)
-#             df.columns = new_cols
-
-#             for c in list(percent_cols):
-#                 try:
-#                     df[c] = df[c].apply(lambda v: f"{float(v):.2f}%")
-#                 except Exception:
-#                     df[c] = df[c].astype(str).apply(lambda s: s if s.endswith('%') else (s + '%') if s.replace('.','',1).isdigit() else s)
-
-#             header = [Paragraph(h, p_hdr) for h in df.columns]
-#             data_rows = [header]
-#             for _, row in df.iterrows():
-#                 cells = []
-#                 for col in df.columns:
-#                     if col == cat_colname:
-#                         cells.append(Paragraph(str(row[col]), p_cat))
-#                     else:
-#                         cells.append(Paragraph(str(row[col]), p_cell))
-#                 data_rows.append(cells)
-
-#             padding = 6
-#             widths = []
-#             for j, col in enumerate(df.columns):
-#                 texts = [str(col)]
-#                 texts.extend([str(v) for v in df[col].astype(str).values])
-#                 max_line = 0.0
-#                 for tx in texts:
-#                     parts = re.split(r'<br\s*/?>', tx, flags=re.I)
-#                     longest = max(parts, key=lambda s: _text_width(s))
-#                     w = _text_width(longest)
-#                     max_line = max(max_line, w)
-#                 widths.append(max_line + padding)
-
-#             try:
-#                 cat_idx = list(df.columns).index(cat_colname)
-#                 widths[cat_idx] = max(widths[cat_idx] * 2.0, widths[cat_idx] + 60)
-#             except Exception:
-#                 pass
-
-#             tbl_inner = Table(data_rows, colWidths=widths, repeatRows=1)
-#             tbl_inner.setStyle(TableStyle([
-#                 ('BACKGROUND', (0,0), (-1,0), colors.lightgrey),
-#                 ('TEXTCOLOR', (0,0), (-1,0), colors.black),
-#                 ('ALIGN', (0,0), (-1,0), 'CENTER'),
-#                 ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-#                 ('GRID', (0,0), (-1,-1), 0.3, colors.black),
-#                 ('FONTSIZE', (0,0), (-1,-1), small_font),
-#                 ('LEFTPADDING', (0,0), (-1,-1), 2),
-#                 ('RIGHTPADDING', (0,0), (-1,-1), 2),
-#                 ('TOPPADDING', (0,0), (-1,-1), 1),
-#                 ('BOTTOMPADDING', (0,0), (-1,-1), 1),
-#             ]))
-#             return tbl_inner, float(sum(widths))
-
-#         def _parse_accuracy_by_tables(concat_path: str, category_col: str):
-#             out = {}
-#             if not os.path.isfile(concat_path):
-#                 return out
-
-#             with open(concat_path, 'r', encoding='utf-8') as f:
-#                 lines = [ln.rstrip('\n') for ln in f.readlines()]
-
-#             esc_cat = re.escape(category_col)
-#             dash = r"[—-]"
-#             patterns = [
-#                 (re.compile(rf'^\s*Results on (Original|Raw) Data\s*{dash}\s*Accuracy by\s+{esc_cat}\s*$', re.I), 'raw'),
-#                 (re.compile(rf'^\s*After Standard Scaler\s*{dash}\s*Accuracy by\s+{esc_cat}\s*$', re.I), 'ss'),
-#                 (re.compile(rf'^\s*After LOF\s*{dash}\s*Accuracy by\s+{esc_cat}\s*$', re.I), 'lof'),
-#                 (re.compile(rf'^\s*After Bayesian Exclusion\s+(\d+)\s*{dash}\s*Accuracy by\s+{esc_cat}\s*$', re.I), 'it'),
-#                 (re.compile(rf'^\s*After Bayesian Exclusion\s+(\d+)\s*\(TURBO\)\s*{dash}\s*Accuracy by\s+{esc_cat}\s*$', re.I), 'itT'),
-#             ]
-
-#             def _grab_table(start_idx):
-#                 data = []
-#                 i = start_idx + 1
-#                 while i < len(lines):
-#                     s = lines[i].strip()
-#                     if not s:
-#                         break
-#                     if s.startswith('#') or re.match(r'^Results\b', s, re.I) or re.match(r'^After\b', s, re.I):
-#                         break
-#                     data.append(lines[i])
-#                     i += 1
-#                 return data
-
-#             def _to_dataframe(raw_lines):
-#                 rows = []
-#                 header_seen = False
-#                 for ln in raw_lines:
-#                     if re.match(r'^\s*[-+|=]+\s*$', ln):
-#                         continue
-#                     parts = [p.strip() for p in re.split(r'\|', ln.strip().strip('|'))]
-#                     if len(parts) >= 2:
-#                         if (not header_seen) and any(re.search(r'\bmean\b', p, re.I) for p in parts):
-#                             header_seen = True
-#                             continue
-#                         label = parts[0]
-#                         val = None
-#                         for p in reversed(parts[1:]):
-#                             m = re.search(r'[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?%?', p)
-#                             if m:
-#                                 val = m.group(0)
-#                                 break
-#                         if label and val:
-#                             rows.append([label, val])
-#                         continue
-#                     cols = re.split(r'\s{2,}', ln.strip())
-#                     if len(cols) >= 2:
-#                         label = cols[0].strip()
-#                         m = re.search(r'[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?%?', cols[-1])
-#                         if label and m:
-#                             rows.append([label, m.group(0)])
-#                 if not rows:
-#                     return None
-#                 norm = []
-#                 for lab, val in rows:
-#                     v = str(val).strip()
-#                     if v.endswith('%'):
-#                         try:
-#                             vnum = float(v[:-1])
-#                             v = f"{vnum:.4f}%"
-#                         except:
-#                             pass
-#                     else:
-#                         try:
-#                             vnum = float(v)
-#                             v = f"{vnum:.4f}%"
-#                         except:
-#                             pass
-#                     norm.append([lab, v])
-#                 try:
-#                     return pd.DataFrame(norm, columns=[category_col, 'Mean'])
-#                 except Exception:
-#                     return None
-
-#             i = 0
-#             while i < len(lines):
-#                 s = lines[i]
-#                 matched = False
-#                 for rx, kind in patterns:
-#                     m = rx.match(s)
-#                     if m:
-#                         if (kind == 'lof') and (not SHOW_LOF):
-#                             matched = True
-#                             break
-#                         data_lines = _grab_table(i)
-#                         df_tab = _to_dataframe(data_lines)
-#                         if df_tab is not None and not df_tab.empty:
-#                             if kind == 'raw':
-#                                 out['raw'] = df_tab
-#                             elif kind == 'ss':
-#                                 out['ss'] = df_tab
-#                             elif kind == 'lof':
-#                                 out['lof'] = df_tab
-#                             elif kind == 'it':
-#                                 out[f"it{int(m.group(1))}"] = df_tab
-#                             elif kind == 'itT':
-#                                 out[f"it{int(m.group(1))}T"] = df_tab
-#                         matched = True
-#                         break
-#                 i += 1 if not matched else 1
-#             return out
-
-#         acc_by_map = _parse_accuracy_by_tables(concatenated_txt_path, cat_col)
-
-#         def _choose_inner_df_for_step(step_disp: str):
-#             text = re.sub(r'<br\s*/?>', ' ', step_disp, flags=re.I)
-#             low = text.strip().lower()
-#             if 'raw data' in low or 'after standard scaler' in low:
-#                 return None
-#             if 'after lof' in low:
-#                 return _load_lof_summary_table()
-#             m = re.search(r'iteration number\s+(\d+)', low)
-#             if m:
-#                 n = int(m.group(1))
-#                 return _load_iteration_summary_table(n)
-#             return None
-
-#         outer_headers = ["Step", "Samples", "ACC.M.", "ACC.M./L", "Removals"]
-#         small_font = 7
-#         styles = getSampleStyleSheet()
-#         p_hdr  = ParagraphStyle('HdrCell',  parent=styles['Normal'], alignment=TA_CENTER,
-#                                 fontSize=small_font, leading=small_font+1, spaceAfter=0)
-#         p_cell = ParagraphStyle('ValCell',  parent=styles['Normal'], alignment=TA_CENTER,
-#                                 fontSize=small_font, leading=small_font+1, spaceAfter=0, wordWrap='CJK')
-#         p_step = ParagraphStyle('StepCell', parent=styles['Normal'], alignment=TA_LEFT,
-#                                 fontSize=small_font, leading=small_font+1, spaceAfter=0, wordWrap='CJK')
-#         p_cat  = ParagraphStyle('CatCell',  parent=styles['Normal'], alignment=TA_LEFT,
-#                                 fontSize=small_font, leading=small_font+1, spaceAfter=0, wordWrap='CJK')
-
-#         outer_header_cells = [Paragraph(h, p_hdr) for h in outer_headers]
-#         outer_data = [outer_header_cells]
-
-#         inner_tables_by_step = {}
-#         max_removals_w = 0.0
-
-#         for step_raw, samples, acc in perf_rows:
-#             step_disp = _display_step_label(step_raw)
-#             df_inner = _choose_inner_df_for_step(step_disp)
-#             tbl_inner = None
-#             inner_total_w = 0.0
-#             if df_inner is not None:
-#                 tbl_inner, inner_total_w = _make_inner_table(df_inner, cat_colname=cat_col)
-#                 max_removals_w = max(max_removals_w, inner_total_w)
-#             inner_tables_by_step[step_raw] = (tbl_inner, inner_total_w)
-
-#         def _acc_key_for_step(step_raw: str):
-#             sr = step_raw.lower()
-#             if 'results on raw data' in sr:
-#                 return 'raw'
-#             if 'results after standard scaler' in sr:
-#                 return 'ss'
-#             if 'results after lof' in sr:
-#                 return 'lof'
-#             m = re.search(r'iteration number\s+(\d+)', sr)
-#             if m and '(turbo)' in sr:
-#                 return f"it{int(m.group(1))}T"
-#             if m:
-#                 return f"it{int(m.group(1))}"
-#             return None
-
-#         acc_tables_by_step = {}
-#         max_accl_w = 0.0
-#         for step_raw, _, _ in perf_rows:
-#             key = _acc_key_for_step(step_raw)
-#             if (key == 'lof') and (not SHOW_LOF):
-#                 acc_tables_by_step[step_raw] = (None, 0.0)
-#                 continue
-#             df_acc = acc_by_map.get(key, None)
-#             if df_acc is not None and not df_acc.empty:
-#                 df_acc = df_acc.rename(columns={df_acc.columns[0]: cat_col, df_acc.columns[-1]: 'Mean'})
-#                 hdr = [Paragraph(cat_col[:1].upper() + cat_col[1:], p_hdr), Paragraph("Mean", p_hdr)]
-#                 rows = [hdr]
-#                 for _, r in df_acc.iterrows():
-#                     cat_txt = _xml_escape(str(r[cat_col]))
-#                     rows.append([Paragraph(cat_txt, p_cat),
-#                                  Paragraph(str(r['Mean']),   p_cell)])
-#                 pad = 6
-#                 col_w0 = max(_text_width(cat_col), max((_text_width(str(x)) for x in df_acc[cat_col].astype(str)), default=0)) + pad
-#                 col_w1 = max(_text_width('Mean'), max((_text_width(str(x)) for x in df_acc['Mean'].astype(str)), default=0)) + pad
-#                 col_w0 = max(col_w0 * 2.0, col_w0 + 60)
-#                 tbl_acc = Table(rows, colWidths=[col_w0, col_w1], repeatRows=1)
-#                 tbl_acc.setStyle(TableStyle([
-#                     ('BACKGROUND', (0,0), (-1,0), colors.lightgrey),
-#                     ('ALIGN', (0,0), (-1,0), 'CENTER'),
-#                     ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-#                     ('GRID', (0,0), (-1,-1), 0.3, colors.black),
-#                     ('FONTSIZE', (0,0), (-1,-1), small_font),
-#                     ('LEFTPADDING', (0,0), (-1,-1), 2),
-#                     ('RIGHTPADDING', (0,0), (-1,-1), 2),
-#                     ('TOPPADDING', (0,0), (-1,-1), 1),
-#                     ('BOTTOMPADDING', (0,0), (-1,-1), 1),
-#                 ]))
-#                 total_w = col_w0 + col_w1
-#                 acc_tables_by_step[step_raw] = (tbl_acc, total_w)
-#                 max_accl_w = max(max_accl_w, total_w)
-#             else:
-#                 acc_tables_by_step[step_raw] = (None, 0.0)
-
-#         left_margin = right_margin = 36
-#         page_w = A4[0] - left_margin - right_margin
-
-#         min_step_w = _text_width("Step")
-#         min_samples_w = _text_width("Samples")
-#         min_acc_w = _text_width("ACC.M.")
-#         for step_raw, samples, acc in perf_rows:
-#             step_disp = _display_step_label(step_raw)
-#             parts = re.split(r'<br\s*/?>', step_disp)
-#             longest = max(parts, key=lambda s: _text_width(s))
-#             min_step_w = max(min_step_w, _text_width(longest))
-#             s_samples = f"{samples:,}".replace(',', '.') if isinstance(samples, int) else "—"
-#             min_samples_w = max(min_samples_w, _text_width(s_samples))
-#             s_acc = f"{acc:.4f}%" if isinstance(acc, (int, float)) and acc is not None else "—"
-#             min_acc_w = max(min_acc_w, _text_width(s_acc))
-
-#         min_rem_w = max_removals_w if max_removals_w > 0 else _text_width("Removals") + 30
-#         min_accl_tab_w = max_accl_w if max_accl_w > 0 else _text_width("ACC.M./L") + 30
-
-#         pad_out = 8
-#         step_col_w = min_step_w + pad_out
-#         sam_col_w  = max(min_samples_w + pad_out, 40)
-#         acc_col_w  = max(min_acc_w + pad_out, 45)
-#         accl_col_w = min_accl_tab_w + pad_out
-#         rem_col_w  = min_rem_w + pad_out
-
-#         reduce_step    = step_col_w * 0.30
-#         reduce_samples = sam_col_w  * 0.20
-#         reduce_acc     = acc_col_w  * 0.10
-#         step_col_w *= 0.70
-#         sam_col_w  *= 0.80
-#         acc_col_w  *= 0.90
-#         freed = reduce_step + reduce_samples + reduce_acc
-#         accl_col_w += freed / 2.0
-#         rem_col_w  += freed / 2.0
-
-#         total_needed = step_col_w + sam_col_w + acc_col_w + accl_col_w + rem_col_w
-#         if total_needed > page_w:
-#             overflow = total_needed - page_w
-#             reducible = (step_col_w - 60) + (sam_col_w - 40) + (acc_col_w - 45)
-#             if reducible > 0:
-#                 ratio = min(1.0, overflow / reducible)
-#                 step_col_w -= (step_col_w - 60) * ratio
-#                 sam_col_w  -= (sam_col_w  - 40) * ratio
-#                 acc_col_w  -= (acc_col_w  - 45) * ratio
-#             total_needed = step_col_w + sam_col_w + acc_col_w + accl_col_w + rem_col_w
-#             if total_needed > page_w:
-#                 rest = total_needed - page_w
-#                 shrink = rest / 2.0
-#                 accl_col_w = max(120, accl_col_w - shrink)
-#                 rem_col_w  = max(120, rem_col_w  - shrink)
-
-#         outer_col_widths = [step_col_w, sam_col_w, acc_col_w, accl_col_w, rem_col_w]
-
-#         for idx, (step_raw, samples, acc) in enumerate(perf_rows):
-#             step_disp = _display_step_label(step_raw)
-#             acc_disp  = f"{acc:.4f}%" if isinstance(acc, (int, float)) and acc is not None else "—"
-#             samp_disp = f"{samples:,}".replace(',', '.') if isinstance(samples, int) else "—"
-
-#             step_cell = Paragraph(step_disp, p_step)
-
-#             acc_tbl, _acw = acc_tables_by_step.get(step_raw, (None, 0.0))
-#             if acc_tbl is None:
-#                 accl_cell = Paragraph("", p_cell)
-#             else:
-#                 accl_cell = KeepInFrame(accl_col_w - 6, 10000, [acc_tbl], mode='shrink')
-
-#             rem_tbl, _rw = inner_tables_by_step.get(step_raw, (None, 0.0))
-#             if rem_tbl is None:
-#                 if idx in (0, 1):
-#                     rem_cell = Paragraph("None", p_cell)
-#                 else:
-#                     rem_cell = Paragraph("", p_cell)
-#             else:
-#                 rem_cell = KeepInFrame(rem_col_w - 6, 10000, [rem_tbl], mode='shrink')
-
-#             row_cells = [
-#                 step_cell,
-#                 Paragraph(str(samp_disp), p_cell),
-#                 Paragraph(str(acc_disp), p_cell),
-#                 accl_cell,
-#                 rem_cell
-#             ]
-#             outer_data.append(row_cells)
-
-#         final_pdf = os.path.join(base, 'final_summary.pdf')
-#         doc_final = SimpleDocTemplate(
-#             final_pdf,
-#             pagesize=A4,
-#             leftMargin=left_margin, rightMargin=right_margin,
-#             topMargin=36, bottomMargin=36
-#         )
-#         story_final = []
-#         story_final.append(Paragraph(f"Final Summary - {proj}", ParagraphStyle('H2C', parent=styles['Heading2'], alignment=TA_CENTER)))
-#         story_final.append(Spacer(1, 6))
-
-#         tbl_final = Table(outer_data, colWidths=outer_col_widths, repeatRows=1)
-#         tbl_final.setStyle(TableStyle([
-#             ('BACKGROUND', (0,0), (-1,0), colors.lightgrey),
-#             ('TEXTCOLOR', (0,0), (-1,0), colors.black),
-#             ('ALIGN', (0,0), (-1,0), 'CENTER'),
-#             ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-#             ('FONTSIZE', (0,0), (-1,-1), small_font),
-#             ('GRID', (0,0), (-1,-1), 0.3, colors.black),
-#             ('LEFTPADDING', (0,0), (-1,-1), 2),
-#             ('RIGHTPADDING', (0,0), (-1,-1), 2),
-#             ('TOPPADDING', (0,0), (-1,-1), 1.5),
-#             ('BOTTOMPADDING', (0,0), (-1,-1), 1.5),
-#         ]))
-#         story_final.append(tbl_final)
-#         doc_final.build(story_final)
-
-#         # =====================================================================
-#         # ======================== NOVO: aggregated_results.pdf ================
-#         # =====================================================================
-#         aggregated_pdf_path = os.path.join(base, 'aggregated_results.pdf')
-#         doc_agg = SimpleDocTemplate(aggregated_pdf_path, pagesize=_LETTER)
-#         story_agg = []
-#         story_agg.append(Paragraph("Aggregated Results (from first to last iteration)", styles['Heading2']))
-#         story_agg.append(Spacer(1, 12))
-
-#         agg_headers = [
-#             'Total',
-#             'Kept (qt)',
-#             'Kept (%)',
-#             'Removed (qt)',
-#             'Removed (%)',
-#             'Flagged (qt)',
-#             'Flagged (%)'
-#         ]
-#         agg_table = [agg_headers]
-
-#         init_total_from_mp = None
-#         for step_name, samples_val, _acc_val in perf_rows:
-#             if _norm_step(step_name).startswith('results on raw data'):
-#                 if isinstance(samples_val, int):
-#                     init_total_from_mp = samples_val
-#                 break
-
-#         first_row = totals_df.iloc[0]
-#         last_row  = totals_df.iloc[-1]
-#         init_total_fallback = int(first_row['total'])
-#         init_total = init_total_from_mp if isinstance(init_total_from_mp, int) else init_total_fallback
-
-#         kept_qt    = int(last_row['kept (qt)'])
-#         flagged_qt = int(totals_df['flagged (qt)'].sum())
-#         removed_qt = max(0, init_total - kept_qt - flagged_qt)
-
-#         kept_pct    = (kept_qt / init_total) * 100.0 if init_total > 0 else 0.0
-#         removed_pct = (removed_qt / init_total) * 100.0 if init_total > 0 else 0.0
-#         flagged_pct = (flagged_qt / init_total) * 100.0 if init_total > 0 else 0.0
-
-#         agg_table.append([
-#             init_total,
-#             kept_qt,    f"{kept_pct:.2f}",
-#             removed_qt, f"{removed_pct:.2f}",
-#             flagged_qt, f"{flagged_pct:.2f}",
-#         ])
-
-#         page_width = _LETTER[0] - 2 * 36
-#         each_col = page_width / len(agg_headers)
-#         agg_col_widths = [each_col] * len(agg_headers)
-
-#         tbl_agg = Table(agg_table, colWidths=agg_col_widths, repeatRows=1)
-#         tbl_agg.setStyle(TableStyle([
-#             ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
-#             ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-#             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-#             ('ALIGN', (0, 1), (-1, -1), 'CENTER'),
-#             ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-#             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-#         ]))
-#         story_agg.append(tbl_agg)
-#         doc_agg.build(story_agg)
-
-#         # =====================================================================
-#         # ======================== NOVO: aggregated_results.png ================
-#         # =====================================================================
-#         aggregated_png_path = os.path.join(base, 'aggregated_results.png')
-
-#         step_labels = []
-#         if os.path.isfile(rd_txt_path):
-#             step_labels.append('raw')
-#         if os.path.isfile(ss_txt_path):
-#             step_labels.append('ss')
-#         if SHOW_LOF and os.path.isfile(lof_txt_path):
-#             step_labels.append('lof')
-#         for it in iteration_numbers:
-#             if os.path.isfile(os.path.join('.', 'projs', proj, '12_method', 'step_04',
-#                                            f'results_{it}', 'results.txt')):
-#                 step_labels.append(f'it{it}')
-#         for it in iteration_numbers:
-#             if os.path.isfile(os.path.join('.', 'projs', proj, '12_method', 'step_04',
-#                                            f'results_{it}_turbo', 'results.txt')):
-#                 step_labels.append(f'it{it}T')
-
-#         def _val_to_float_pct(v):
-#             s = str(v).strip()
-#             if s.endswith('%'):
-#                 try:
-#                     val = float(s[:-1])
-#                 except Exception:
-#                     return None
-#             else:
-#                 try:
-#                     val = float(s)
-#                 except Exception:
-#                     return None
-#             if -1.0000001 <= val <= 1.0000001:
-#                 return val * 100.0
-#             return val
-
-#         cats_set = set()
-#         for key in acc_by_map:
-#             dfk = acc_by_map[key]
-#             if dfk is not None and not dfk.empty:
-#                 cats_set |= set(dfk.iloc[:, 0].astype(str).map(normalize_all).values)
-
-#         cats_sorted = []
-#         if 'ALL' in cats_set:
-#             cats_sorted.append('ALL')
-#         cats_sorted += sorted([c for c in cats_set if c != 'ALL'], key=str.casefold)
-
-#         x_ticks = []
-#         for lab in step_labels:
-#             if lab == 'raw':
-#                 x_ticks.append('RD')
-#             elif lab == 'ss':
-#                 x_ticks.append('SS')
-#             elif lab == 'lof':
-#                 x_ticks.append('LOF')
-#             elif lab.endswith('T'):
-#                 x_ticks.append(f"It.{lab[2:-1]}T")
-#             else:
-#                 x_ticks.append(f"It.{lab[2:]}")
-
-#         x_pos = list(range(len(x_ticks)))
-
-#         plt.figure(figsize=(20, 6))
-#         ax = plt.gca()
-
-#         def _fill_continuity(values):
-#             vals = values[:]
-#             idx_valid = [i for i, v in enumerate(vals) if isinstance(v, (int, float))]
-#             if not idx_valid:
-#                 return vals
-#             first, last = idx_valid[0], idx_valid[-1]
-#             for i in range(0, first):
-#                 vals[i] = vals[first]
-#             for i in range(last + 1, len(vals)):
-#                 vals[i] = vals[last]
-#             i = 0
-#             while i < len(vals):
-#                 if vals[i] is None:
-#                     j = i
-#                     while j < len(vals) and vals[j] is None:
-#                         j += 1
-#                     left = vals[i - 1] if i - 1 >= 0 else None
-#                     right = vals[j] if j < len(vals) else None
-#                     if isinstance(left, (int, float)) and isinstance(right, (int, float)):
-#                         for k in range(i, j):
-#                             t = (k - (i - 1)) / (j - (i - 1))
-#                             vals[k] = left + t * (right - left)
-#                     else:
-#                         fillv = left if isinstance(left, (int, float)) else right
-#                         for k in range(i, j):
-#                             vals[k] = fillv
-#                     i = j
-#                 else:
-#                     i += 1
-#             return vals
-
-#         y_all = []
-#         for lab in step_labels:
-#             dfk = acc_by_map.get(lab)
-#             if dfk is None or dfk.empty:
-#                 y_all.append(None)
-#                 continue
-#             row = dfk[dfk.iloc[:, 0].astype(str).map(normalize_all) == 'ALL']
-#             y_all.append(_val_to_float_pct(row.iloc[0, 1]) if not row.empty else None)
-#         y_all = _fill_continuity(y_all)
-#         ax.plot(x_pos, y_all, marker='o', linestyle='-', color='black',
-#                 linewidth=3, label='ALL')
-
-#         for cat in [c for c in cats_sorted if c != 'ALL']:
-#             y_cat = []
-#             for lab in step_labels:
-#                 dfk = acc_by_map.get(lab)
-#                 if dfk is None or dfk.empty:
-#                     y_cat.append(None)
-#                     continue
-#                 row = dfk[dfk.iloc[:, 0].astype(str).map(normalize_all) == cat]
-#                 y_cat.append(_val_to_float_pct(row.iloc[0, 1]) if not row.empty else None)
-#             y_cat = _fill_continuity(y_cat)
-#             ax.plot(x_pos, y_cat, marker='o', linestyle='-', label=cat)
-
-#         ax.set_xticks(x_pos)
-#         ax.set_xticklabels(x_ticks)
-#         ax.set_title(f"Project {proj} - Accuracy by Category (Aggregated)")
-#         ax.set_ylabel("Accuracy Mean (%)")
-#         ax.set_xlabel("Steps")
-#         ax.grid(True, alpha=0.3)
-#         ax.tick_params(axis='x', pad=18)
-
-#         plt.subplots_adjust(left=0.06, right=0.58, bottom=0.22, top=0.96)
-
-#         fig = plt.gcf()
-
-#         handles, labels = ax.get_legend_handles_labels()
-#         if 'ALL' in labels:
-#             idx_all = labels.index('ALL')
-#             handles = [handles[idx_all]] + [h for i, h in enumerate(handles) if i != idx_all]
-#             labels = ['ALL'] + [l for l in labels if l != 'ALL']
-
-#         fig.legend(handles, labels,
-#                    loc='upper left',
-#                    bbox_to_anchor=(0.60, 0.96),
-#                    borderaxespad=0.,
-#                    title="Legend")
-
-#         table_ax = fig.add_axes([0.80, 0.25, 0.18, 0.71])
-#         table_ax.axis('off')
-
-#         data_tbl = [["Step", "Samples", "Rem%", "ACC M%"]]
-
-#         baseline_samples = None
-#         for _, s, _ in perf_rows:
-#             if isinstance(s, int):
-#                 baseline_samples = s
-#                 break
-
-#         def _fmt_removed(samples: int) -> str:
-#             if not isinstance(samples, int) or not isinstance(baseline_samples, int) or baseline_samples <= 0:
-#                 return "—"
-#             pct = max(0.0, (1.0 - (samples / baseline_samples)) * 100.0)
-#             return f"{pct:.2f}%"
-
-#         def _compact_step_label_for_png(step_raw: str) -> str:
-#             s = step_raw.strip().lower()
-#             if s.startswith('results on raw data'):
-#                 return 'Raw Data'
-#             if s.startswith('results after standard scaler'):
-#                 return 'After S.S.'
-#             if s.startswith('results after lof'):
-#                 return 'After LOF'
-#             m = re.search(r'results for iteration number\s+(\d+)', s)
-#             if m:
-#                 n = m.group(1)
-#                 return f"It {n} (Turbo)" if '(turbo)' in s else f"It {n}"
-#             return step_raw
-
-#         first = True
-#         for step, samples, acc in perf_rows:
-#             acc_disp = f"{acc:.2f}%" if isinstance(acc, (int, float)) and acc is not None else "—"
-#             samp_disp = f"{samples:,}".replace(',', '.') if isinstance(samples, int) else "—"
-#             removed_disp = "0.00%" if first else _fmt_removed(samples)
-#             first = False
-#             data_tbl.append([
-#                 _compact_step_label_for_png(step),
-#                 samp_disp,
-#                 removed_disp,
-#                 acc_disp
-#             ])
-
-#         table = table_ax.table(cellText=data_tbl,
-#                                colWidths=[0.25, 0.17, 0.15, 0.20],
-#                                loc='upper left')
-#         table.auto_set_font_size(False)
-#         table.set_fontsize(8)
-#         table.scale(1.20, 1.15)
-#         for (row, col), cell in table.get_celld().items():
-#             cell.set_edgecolor("black")
-#             if row == 0:
-#                 cell.set_facecolor("#D3D3D3")
-
-#         legend_text = (
-#             "LEGEND  |  RD: Raw Data  |  SS: Data after Standard Scaling"
-#             + ("  |  LOF: Data after Local Outliers Factor" if SHOW_LOF else "")
-#             + "  |  It.N: Nth Iteration (non-turbo)  |  It.NT: Nth Iteration (TURBO)"
-#         )
-
-#         fig.text(0.03, 0.10, legend_text,
-#                  ha='left', va='top',
-#                  fontsize=9, family='monospace')
-
-#         try:
-#             valid = [(i, v) for i, v in enumerate(y_all) if isinstance(v, (int, float))]
-#             if valid:
-#                 best_idx, best_val = max(valid, key=lambda t: t[1])
-#                 ax.plot(best_idx, best_val, marker='o', color='red')
-#                 best_text = f"Best Accuracy = {best_val:.2f}%, at {x_ticks[best_idx]}"
-#                 fig.text(0.5, 0.03, best_text,
-#                          ha='center', va='bottom',
-#                          color='red', fontweight='bold', fontsize=10)
-#         except Exception:
-#             pass
-
-#         plt.savefig(aggregated_png_path)
-#         plt.close()
-
-#         # =====================================================================
-#         # =================== Confusion Matrix (CSV/TEX/PNG) ==================
-#         # =====================================================================
-#         # AGORA: segue exatamente a regra:
-#         #  - targets: ./projs/<proj>/08_mapping_original_labels/targets.csv
-#         #  - predicted: escolher SEMPRE o maior "results_<n>" em 12_method/step_04
-#         #    e, para esse n, preferir "results_<n>_turbo" se existir.
-#         try:
-#             # 1) Localizar melhor iteração em ./projs/<proj>/12_method/step_04/
-#             step04_dir = os.path.join('.', 'projs', proj, '12_method', 'step_04')
-#             best_it = None
-#             best_has_turbo = False
-
-#             if os.path.isdir(step04_dir):
-#                 for name in os.listdir(step04_dir):
-#                     m = re.match(r'^results_(\d+)(_turbo)?$', name)
-#                     if not m:
-#                         continue
-#                     it_val = int(m.group(1))
-#                     is_turbo = m.group(2) is not None
-
-#                     if best_it is None or it_val > best_it:
-#                         best_it = it_val
-#                         best_has_turbo = is_turbo
-#                     elif it_val == best_it and is_turbo and not best_has_turbo:
-#                         # mesmo n, mas agora achamos a versão turbo → preferir turbo
-#                         best_has_turbo = True
-
-#             if best_it is not None:
-#                 # 2) Caminhos dos CSVs
-#                 targets_csv = os.path.join(
-#                     '.', 'projs', proj,
-#                     '08_mapping_original_labels', 'targets.csv'
-#                 )
-
-#                 if best_has_turbo:
-#                     pred_dir = os.path.join(step04_dir, f'results_{best_it}_turbo')
-#                     used_suffix = "T"
-#                 else:
-#                     pred_dir = os.path.join(step04_dir, f'results_{best_it}')
-#                     used_suffix = ""
-
-#                 pred_csv_path = os.path.join(pred_dir, 'predicted.csv')
-
-#                 if os.path.isfile(targets_csv) and os.path.isfile(pred_csv_path):
-#                     df_targets = pd.read_csv(targets_csv)
-#                     df_pred    = pd.read_csv(pred_csv_path)
-
-#                     # Precisamos de 'id' e 'label' em ambos
-#                     if (
-#                         {'id', 'label'}.issubset(df_targets.columns)
-#                         and {'id', 'label'}.issubset(df_pred.columns)
-#                     ):
-#                         df_pred = df_pred.rename(columns={'label': 'pred_label'})
-
-#                         merged = df_targets[['id', 'label']].merge(
-#                             df_pred[['id', 'pred_label']],
-#                             on='id',
-#                             how='inner'
-#                         )
-
-#                         merged = merged.dropna(subset=['label', 'pred_label'])
-
-#                         if not merged.empty:
-#                             y_true = merged['label'].astype(str)
-#                             y_pred = merged['pred_label'].astype(str)
-
-#                             cm = pd.crosstab(y_true, y_pred)
-
-#                             # ---------- CSV ----------
-#                             cm_csv_path = os.path.join(base, 'confusion_matrix.csv')
-#                             cm.to_csv(cm_csv_path, index=True)
-
-#                             # ---------- TEX ----------
-#                             def _latex_escape_cm(text: str) -> str:
-#                                 rep = {
-#                                     '\\': r'\textbackslash{}',
-#                                     '&': r'\&',
-#                                     '%': r'\%',
-#                                     '$': r'\$',
-#                                     '#': r'\#',
-#                                     '_': r'\_',
-#                                     '{': r'\{',
-#                                     '}': r'\}',
-#                                     '~': r'\textasciitilde{}',
-#                                     '^': r'\textasciicircum{}',
-#                                 }
-#                                 for k, v in rep.items():
-#                                     text = text.replace(k, v)
-#                                 return text
-
-#                             cols = list(cm.columns)
-#                             rows = list(cm.index)
-
-#                             lines = []
-#                             lines.append(r"\begin{table}[!h]")
-#                             lines.append(r"\centering")
-#                             lines.append(
-#                                 rf"\caption{{{_latex_escape_cm('Confusion matrix (after exclusion) — last iteration')}}}"
-#                             )
-#                             lines.append(
-#                                 rf"\label{{{_latex_escape_cm('tab:confusion_matrix_after')}}}"
-#                             )
-#                             lines.append(
-#                                 r"\begin{tabular}{@{}l" + "r" * len(cols) + r"@{}}"
-#                             )
-#                             lines.append(r"\hline")
-#                             header = (
-#                                 "True \\ Pred"
-#                                 + " & "
-#                                 + " & ".join(_latex_escape_cm(str(c)) for c in cols)
-#                                 + r" \\ \hline"
-#                             )
-#                             lines.append(header)
-#                             for r_val in rows:
-#                                 vals = " & ".join(str(int(cm.loc[r_val, c])) for c in cols)
-#                                 lines.append(
-#                                     _latex_escape_cm(str(r_val)) + " & " + vals + r" \\"
-#                                 )
-#                             lines.append(r"\hline")
-#                             lines.append(r"\end{tabular}")
-#                             lines.append(r"\end{table}")
-
-#                             cm_tex_path = os.path.join(base, 'confusion_matrix.tex')
-#                             with open(cm_tex_path, 'w', encoding='utf-8') as f:
-#                                 f.write("\n".join(lines))
-
-#                             # ---------- PNG (heatmap) ----------
-#                             cm_png_path = os.path.join(base, 'confusion_matrix.png')
-#                             plt.figure(figsize=(10, 8))
-#                             ax_cm = plt.gca()
-
-#                             cmap_wh_or_red = LinearSegmentedColormap.from_list(
-#                                 'wh_or_red',
-#                                 [
-#                                     (0.0, '#FFFBE6'),
-#                                     (0.40, '#FFD180'),
-#                                     (0.70, '#FF8F00'),
-#                                     (1.0, '#D32F2F'),
-#                                 ]
-#                             )
-#                             vmax = int(np.max(cm.values)) if cm.values.size else 1
-#                             if vmax <= 0:
-#                                 vmax = 1
-#                             norm = Normalize(vmin=0, vmax=vmax)
-
-#                             im = ax_cm.imshow(
-#                                 cm.values,
-#                                 aspect='auto',
-#                                 cmap=cmap_wh_or_red,
-#                                 norm=norm
-#                             )
-
-#                             ax_cm.set_xticks(range(len(cols)))
-#                             ax_cm.set_yticks(range(len(rows)))
-#                             ax_cm.set_xticklabels(cols, rotation=45, ha='right')
-#                             ax_cm.set_yticklabels(rows)
-#                             ax_cm.set_xlabel('Predicted')
-#                             ax_cm.set_ylabel('True')
-
-#                             if used_suffix == "T":
-#                                 it_label = f"It.{best_it}T"
-#                             else:
-#                                 it_label = f"It.{best_it}"
-#                             ax_cm.set_title(
-#                                 f'Confusion Matrix — {proj} ({it_label})'
-#                             )
-
-#                             for i in range(cm.shape[0]):
-#                                 for j in range(cm.shape[1]):
-#                                     ax_cm.text(
-#                                         j, i,
-#                                         str(int(cm.iloc[i, j])),
-#                                         ha='center', va='center'
-#                                     )
-
-#                             cbar = plt.colorbar(
-#                                 im,
-#                                 ax=ax_cm,
-#                                 fraction=0.046,
-#                                 pad=0.04
-#                             )
-#                             cbar.set_label('Contagem', rotation=90)
-
-#                             plt.tight_layout(rect=[0, 0, 0.80, 1])
-#                             fig_cm = plt.gcf()
-#                             fig_cm.subplots_adjust(right=0.78)
-
-#                             legend_text_cm = (
-#                                 "LEGENDA DE CORES\n\n"
-#                                 "Quase branco → 0 (ou muito baixo)\n"
-#                                 "Laranja → valores médios\n"
-#                                 "Vermelho → valores mais altos"
-#                             )
-#                             fig_cm.text(
-#                                 0.82, 0.5,
-#                                 legend_text_cm,
-#                                 va='center', ha='left',
-#                                 fontsize=9
-#                             )
-
-#                             plt.savefig(
-#                                 cm_png_path,
-#                                 bbox_inches='tight',
-#                                 pad_inches=0.25
-#                             )
-#                             plt.close()
-#             # qualquer erro aqui NÃO derruba o endpoint
-#         except Exception:
-#             pass
-
-#         # ------------------ resposta ------------------
-#         return jsonify({
-#             "message": "Resumo estatístico gerado com sucesso.",
-#             "category_column": cat_col,
-#             "category_order_used": categories,
-#             "categorized_csv": categorized_csv,
-#             "totals_csv": totals_csv,
-#             "totals_pdf": totals_pdf_path,
-#             "clusters_pdf": clusters_pdf_path,
-#             "concatenated_results_txt": concatenated_txt_path,
-#             "method_performance_pdf": method_perf_pdf_path,
-#             "method_performance_tex": method_perf_tex_path,
-#             "method_performance_png": perf_png_path,
-#             "method_performance_small_png": perf_small_png_path,
-#             "concatenated_results_pdf": concatenated_pdf_path,
-#             "final_summary_pdf": final_pdf,
-#             "aggregated_results_pdf": aggregated_pdf_path,
-#             "aggregated_results_png": aggregated_png_path,
-#             "confusion_matrix_csv": os.path.join(base, 'confusion_matrix.csv'),
-#             "confusion_matrix_tex": os.path.join(base, 'confusion_matrix.tex'),
-#             "confusion_matrix_png": os.path.join(base, 'confusion_matrix.png')
-#         }), 200
-
-#     except Exception as e:
-#         return jsonify({"message": f"Erro interno: {e}"}), 500
 
 
 
