@@ -13378,7 +13378,6 @@ def step_04__evaluate_results_after_exclude():
 #       e com "./projs/<project_name>/12_method/step_04/results_<iteration_number>[_turbo]/predicted.csv"
 
 
-
 @app.route('/statistical_summary', methods=['POST'])
 def statistical_summary():
     """
@@ -13429,6 +13428,29 @@ def statistical_summary():
         from xml.sax.saxutils import escape as _xml_escape
         import numpy as np
         from matplotlib.colors import LinearSegmentedColormap, Normalize
+
+        # ------------------ helper: Turbo -> Tuned (preserva case) ------------------
+        def _turbo_to_tuned_preserve_case(text: str) -> str:
+            if text is None:
+                return text
+
+            def repl(m):
+                w = m.group(0)
+                base = "tuned"  # mesmo tamanho de "turbo"
+                # casos comuns
+                if w.isupper():
+                    return base.upper()
+                if w.islower():
+                    return base
+                if (len(w) == 5) and w[0].isupper() and w[1:].islower():
+                    return base.capitalize()
+                # caso misto: preserva case por caractere
+                out = []
+                for i, ch in enumerate(w):
+                    out.append(base[i].upper() if ch.isupper() else base[i])
+                return "".join(out)
+
+            return re.sub(r"turbo", repl, str(text), flags=re.I)
 
         # ------------------ 1) parâmetros ------------------
         if 'project_name' not in request.form:
@@ -13724,22 +13746,22 @@ def statistical_summary():
 
                 results_txt_turbo = os.path.join('.', 'projs', proj, '12_method', 'step_04', f'results_{it}_turbo', 'results.txt')
                 if os.path.isfile(results_txt_turbo):
-                    turbo_header = (
+                    tuned_header = (
                         "\n\n"
                         "##################################################################\n"
-                        f"########  Results for iteration number {it} (TURBO) - start ########\n"
+                        f"########  Results for iteration number {it} (TUNED) - start ########\n"
                         "##################################################################\n\n"
                     )
-                    fout.write(turbo_header)
+                    fout.write(tuned_header)
                     with open(results_txt_turbo, 'r', encoding='utf-8') as fin_turbo:
                         fout.write(fin_turbo.read())
-                    turbo_footer = (
+                    tuned_footer = (
                         "\n\n"
                         "##################################################################\n"
-                        f"########  Results for iteration number {it} (TURBO) - end ########\n"
+                        f"########  Results for iteration number {it} (TUNED) - end ########\n"
                         "##################################################################\n\n"
                     )
-                    fout.write(turbo_footer)
+                    fout.write(tuned_footer)
 
         # ------------------ 11.6) Samples por CSV ------------------
         def _count_rows_csv(csv_path: str):
@@ -13776,6 +13798,8 @@ def statistical_summary():
                 n = _count_rows_csv(csv_it)
                 if isinstance(n, int):
                     smap[_norm_step(f'Results for iteration number {itn}')] = n
+                    # Exibição textual agora é (TUNED), mas aceitamos também (TURBO) para compatibilidade
+                    smap[_norm_step(f'Results for iteration number {itn} (TUNED)')] = n
                     smap[_norm_step(f'Results for iteration number {itn} (TURBO)')] = n
 
             return smap
@@ -13886,10 +13910,13 @@ def statistical_summary():
                 return f"{pct:.2f}%"
 
             for step, samples, acc in perf_rows:
+                # ajuste textual Turbo->Tuned preservando case (sem afetar lógica)
+                step_disp = _turbo_to_tuned_preserve_case(step)
+
                 acc_disp = f"{acc:.2f}%" if isinstance(acc, (int, float)) and acc is not None else "—"
                 samp_disp = f"{samples:,}".replace(',', '.') if isinstance(samples, int) else "—"
                 removed_disp = "0.00%" if step.lower().startswith("results on raw data") else _fmt_removed(samples)
-                table_data_mp.append([step, samp_disp, removed_disp, acc_disp])
+                table_data_mp.append([step_disp, samp_disp, removed_disp, acc_disp])
 
             pg_w = letter[0] - 2 * 36
             col_w1 = pg_w * 0.50
@@ -13947,7 +13974,7 @@ def statistical_summary():
                     return f"{pct:.2f}"
 
                 def _build_abbrev_step_label(step_raw: str) -> str:
-                    s = step_raw.strip()
+                    s = _turbo_to_tuned_preserve_case(step_raw).strip()
                     low = s.lower()
                     if low.startswith('results on raw data'):
                         abbr = 'RD'
@@ -13959,7 +13986,7 @@ def statistical_summary():
                         m = re.search(r'results for iteration number\s+(\d+)', low)
                         if m:
                             n = m.group(1)
-                            if '(turbo)' in low:
+                            if ('(tuned)' in low) or ('(turbo)' in low):
                                 abbr = f"It.{n}T"
                             else:
                                 abbr = f"It.{n}"
@@ -14117,8 +14144,8 @@ def statistical_summary():
                         m = re.search(r'results for iteration number\s+(\d+)', s)
                         if m:
                             n = m.group(1)
-                            return f"It {n} (Turbo)" if '(turbo)' in s else f"It {n}"
-                        return step_raw
+                            return f"It {n} (Tuned)" if ('(tuned)' in s or '(turbo)' in s) else f"It {n}"
+                        return _turbo_to_tuned_preserve_case(step_raw)
 
                     fig = plt.gcf()
                     right_ax = fig.add_axes([0.82, 0.10, 0.17, 0.82])
@@ -14261,6 +14288,7 @@ def statistical_summary():
         def _add_section_with_cover(section_title: str, section_pdf_path: str):
             if not os.path.isfile(section_pdf_path):
                 return
+            section_title = _turbo_to_tuned_preserve_case(section_title)
             full_section_title = f"PROJECT {proj.upper()} {section_title}"
             words = full_section_title.split()
             broken_title = "<br/>".join(words)
@@ -14315,7 +14343,7 @@ def statistical_summary():
                 _add_section_with_cover(f"Results after Bayesian Exclusion number {it}", results_pdf_path)
             results_pdf_turbo = os.path.join('.', 'projs', proj, '12_method', 'step_04', f'results_{it}_turbo', 'results.pdf')
             if os.path.isfile(results_pdf_turbo):
-                _add_section_with_cover(f"Results after Bayesian Exclusion number {it} (TURBO)", results_pdf_turbo)
+                _add_section_with_cover(f"Results after Bayesian Exclusion number {it} (TUNED)", results_pdf_turbo)
 
         writer.write(concatenated_pdf_path)
         try:
@@ -14329,7 +14357,8 @@ def statistical_summary():
         def _display_step_label(step_raw: str) -> str:
             s = re.sub(r'(?i)\bresults\b', '', step_raw).strip()
             s = re.sub(r'\s+', ' ', s)
-            s = re.sub(r'\s*\((?i:TURBO)\)', '<br/>(TURBO)', s)
+            # agora é (TUNED) (mas aceita TURBO caso apareça)
+            s = re.sub(r'\s*\((?i:TURBO|TUNED)\)', '<br/>(TUNED)', s)
             return s
 
         def _load_lof_summary_table():
@@ -14468,7 +14497,7 @@ def statistical_summary():
                 (re.compile(rf'^\s*After Standard Scaler\s*{dash}\s*Accuracy by\s+{esc_cat}\s*$', re.I), 'ss'),
                 (re.compile(rf'^\s*After LOF\s*{dash}\s*Accuracy by\s+{esc_cat}\s*$', re.I), 'lof'),
                 (re.compile(rf'^\s*After Bayesian Exclusion\s+(\d+)\s*{dash}\s*Accuracy by\s+{esc_cat}\s*$', re.I), 'it'),
-                (re.compile(rf'^\s*After Bayesian Exclusion\s+(\d+)\s*\(TURBO\)\s*{dash}\s*Accuracy by\s+{esc_cat}\s*$', re.I), 'itT'),
+                (re.compile(rf'^\s*After Bayesian Exclusion\s+(\d+)\s*\((?:TURBO|TUNED)\)\s*{dash}\s*Accuracy by\s+{esc_cat}\s*$', re.I), 'itT'),
             ]
 
             def _grab_table(start_idx):
@@ -14539,12 +14568,10 @@ def statistical_summary():
             i = 0
             while i < len(lines):
                 s = lines[i]
-                matched = False
                 for rx, kind in patterns:
                     m = rx.match(s)
                     if m:
                         if (kind == 'lof') and (not SHOW_LOF):
-                            matched = True
                             break
                         data_lines = _grab_table(i)
                         df_tab = _to_dataframe(data_lines)
@@ -14559,7 +14586,6 @@ def statistical_summary():
                                 out[f"it{int(m.group(1))}"] = df_tab
                             elif kind == 'itT':
                                 out[f"it{int(m.group(1))}T"] = df_tab
-                        matched = True
                         break
                 i += 1
             return out
@@ -14605,7 +14631,7 @@ def statistical_summary():
             if 'results after lof' in sr:
                 return 'lof'
             m = re.search(r'iteration number\s+(\d+)', sr)
-            if m and '(turbo)' in sr:
+            if m and (('(tuned)' in sr) or ('(turbo)' in sr)):
                 return f"it{int(m.group(1))}T"
             if m:
                 return f"it{int(m.group(1))}"
@@ -14825,15 +14851,12 @@ def statistical_summary():
         ]))
         story_agg.append(tbl_agg)
         doc_agg.build(story_agg)
-        
-        
-        
-        
+
         # =====================================================================
         # ======================== aggregated_results.png ======================
         # =====================================================================
         aggregated_png_path = os.path.join(base, 'aggregated_results.png')
-        
+
         step_labels = []
         if os.path.isfile(rd_txt_path):
             step_labels.append('raw')
@@ -14847,7 +14870,7 @@ def statistical_summary():
         for it in iteration_numbers:
             if os.path.isfile(os.path.join('.', 'projs', proj, '12_method', 'step_04', f'results_{it}_turbo', 'results.txt')):
                 step_labels.append(f'it{it}T')
-        
+
         def _val_to_float_pct(v):
             s = str(v).strip()
             if s.endswith('%'):
@@ -14863,18 +14886,18 @@ def statistical_summary():
             if -1.0000001 <= val <= 1.0000001:
                 return val * 100.0
             return val
-        
+
         cats_set = set()
         for key in acc_by_map:
             dfk = acc_by_map[key]
             if dfk is not None and not dfk.empty:
                 cats_set |= set(dfk.iloc[:, 0].astype(str).map(normalize_all).values)
-        
+
         cats_sorted = []
         if 'ALL' in cats_set:
             cats_sorted.append('ALL')
         cats_sorted += sorted([c for c in cats_set if c != 'ALL'], key=str.casefold)
-        
+
         x_ticks = []
         for lab in step_labels:
             if lab == 'raw':
@@ -14887,12 +14910,12 @@ def statistical_summary():
                 x_ticks.append(f"It.{lab[2:-1]}T")
             else:
                 x_ticks.append(f"It.{lab[2:]}")
-        
+
         x_pos = list(range(len(x_ticks)))
-        
+
         plt.figure(figsize=(20, 6))
         ax = plt.gca()
-        
+
         def _fill_continuity(values):
             vals = values[:]
             idx_valid = [i for i, v in enumerate(vals) if isinstance(v, (int, float))]
@@ -14923,7 +14946,7 @@ def statistical_summary():
                 else:
                     i += 1
             return vals
-        
+
         # ---------------- ALL (linha global) ----------------
         # Fonte correta: perf_rows (mesma do method_performance_small.png)
         step_key_to_acc = {}
@@ -14931,38 +14954,38 @@ def statistical_summary():
             key = _acc_key_for_step(step_raw)
             if key and isinstance(acc, (int, float)):
                 step_key_to_acc[key] = acc
-        
+
         y_all = []
         for lab in step_labels:
             y_all.append(step_key_to_acc.get(lab))
         y_all = _fill_continuity(y_all)
-        
+
         ax.plot(
             x_pos,
             y_all,
-            marker='D',          # marcador exclusivo
+            marker='D',
             linestyle='-',
-            color='black',       # preto reservado EXCLUSIVAMENTE ao ALL
-            linewidth=4,         # negrito só aqui
+            color='black',
+            linewidth=4,
             markersize=7,
             label='ALL',
             zorder=10
         )
-        
+
         # ---------------- Culturas (nunca preto, nunca em negrito) ----------------
         import matplotlib as _mpl
         cycle_colors = [c.get('color') for c in _mpl.rcParams['axes.prop_cycle']]
-        
+
         def _is_black(c):
             if c is None:
                 return False
             s = str(c).strip().lower()
             return s in ('k', 'black', '#000', '#000000')
-        
+
         cycle_colors = [c for c in cycle_colors if not _is_black(c)]
         if not cycle_colors:
             cycle_colors = ['C0', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9']
-        
+
         ci = 0
         for cat in [c for c in cats_sorted if c != 'ALL']:
             y_cat = []
@@ -14973,22 +14996,22 @@ def statistical_summary():
                     continue
                 row = dfk[dfk.iloc[:, 0].astype(str).map(normalize_all) == cat]
                 y_cat.append(_val_to_float_pct(row.iloc[0, 1]) if not row.empty else None)
-        
+
             y_cat = _fill_continuity(y_cat)
             color_cat = cycle_colors[ci % len(cycle_colors)]
             ci += 1
-        
+
             ax.plot(
                 x_pos,
                 y_cat,
                 marker='o',
                 linestyle='-',
-                linewidth=1.5,     # mesma espessura para TODAS as culturas
-                color=color_cat,   # garante: nunca preto
+                linewidth=1.5,
+                color=color_cat,
                 label=cat,
                 zorder=2
             )
-        
+
         ax.set_xticks(x_pos)
         ax.set_xticklabels(x_ticks)
         ax.set_title(f"Project {proj} - Accuracy by Category (Aggregated)")
@@ -14996,16 +15019,16 @@ def statistical_summary():
         ax.set_xlabel("Steps")
         ax.grid(True, alpha=0.3)
         ax.tick_params(axis='x', pad=18)
-        
+
         plt.subplots_adjust(left=0.06, right=0.58, bottom=0.22, top=0.96)
-        
+
         fig = plt.gcf()
         handles, labels = ax.get_legend_handles_labels()
         if 'ALL' in labels:
             idx_all = labels.index('ALL')
             handles = [handles[idx_all]] + [h for i, h in enumerate(handles) if i != idx_all]
             labels = ['ALL'] + [l for l in labels if l != 'ALL']
-        
+
         fig.legend(
             handles, labels,
             loc='upper left',
@@ -15013,24 +15036,24 @@ def statistical_summary():
             borderaxespad=0.,
             title="Legend"
         )
-        
+
         table_ax = fig.add_axes([0.80, 0.25, 0.18, 0.71])
         table_ax.axis('off')
-        
+
         data_tbl = [["Step", "Samples", "Rem%", "ACC M%"]]
-        
+
         baseline_samples = None
         for _, s, _ in perf_rows:
             if isinstance(s, int):
                 baseline_samples = s
                 break
-        
+
         def _fmt_removed(samples: int) -> str:
             if not isinstance(samples, int) or not isinstance(baseline_samples, int) or baseline_samples <= 0:
                 return "—"
             pct = max(0.0, (1.0 - (samples / baseline_samples)) * 100.0)
             return f"{pct:.2f}%"
-        
+
         def _compact_step_label_for_png(step_raw: str) -> str:
             s = step_raw.strip().lower()
             if s.startswith('results on raw data'):
@@ -15042,9 +15065,9 @@ def statistical_summary():
             m = re.search(r'results for iteration number\s+(\d+)', s)
             if m:
                 n = m.group(1)
-                return f"It {n} (Turbo)" if '(turbo)' in s else f"It {n}"
-            return step_raw
-        
+                return f"It {n} (Tuned)" if ('(tuned)' in s or '(turbo)' in s) else f"It {n}"
+            return _turbo_to_tuned_preserve_case(step_raw)
+
         first = True
         for step, samples, acc in perf_rows:
             acc_disp = f"{acc:.2f}%" if isinstance(acc, (int, float)) and acc is not None else "—"
@@ -15057,7 +15080,7 @@ def statistical_summary():
                 removed_disp,
                 acc_disp
             ])
-        
+
         table = table_ax.table(
             cellText=data_tbl,
             colWidths=[0.25, 0.17, 0.15, 0.20],
@@ -15070,19 +15093,19 @@ def statistical_summary():
             cell.set_edgecolor("black")
             if row == 0:
                 cell.set_facecolor("#D3D3D3")
-        
+
         legend_text = (
             "LEGEND  |  RD: Raw Data  |  SS: Data after Standard Scaling"
             + ("  |  LOF: Data after Local Outliers Factor" if SHOW_LOF else "")
             + "  |  It.N: Nth Iteration (non-tuned)  |  It.NT: Nth Iteration (TUNED)"
         )
-        
+
         fig.text(
             0.03, 0.10, legend_text,
             ha='left', va='top',
             fontsize=9, family='monospace'
         )
-        
+
         try:
             valid = [(i, v) for i, v in enumerate(y_all) if isinstance(v, (int, float))]
             if valid:
@@ -15096,17 +15119,13 @@ def statistical_summary():
                 )
         except Exception:
             pass
-        
+
         plt.savefig(aggregated_png_path)
         plt.close()
-                
-
 
         # =====================================================================
         # =================== Confusion Matrix (CSV/TEX/PNG) ==================
         # =====================================================================
-        # (mantém a versão nova: escolhe maior iteração, prefere TURBO, mapeia label_map.csv se existir,
-        #  suporta rotate_titles_in_the_matrix_of_confusion no LaTeX)
         try:
             base_step04 = os.path.join('.', 'projs', proj, '12_method', 'step_04')
             targets_csv = os.path.join('.', 'projs', proj, '08_mapping_original_labels', 'targets.csv')
@@ -15150,7 +15169,6 @@ def statistical_summary():
                         df_pred    = pd.read_csv(pred_csv_path)
 
                         if {'id', 'label'}.issubset(df_targets.columns) and {'id', 'label'}.issubset(df_pred.columns):
-                            # mapeamento opcional inteiro -> texto via label_map.csv
                             try:
                                 label_map_path = os.path.join('.', 'projs', proj, '08_mapping_original_labels', 'label_map.csv')
                                 if os.path.isfile(label_map_path):
@@ -15317,7 +15335,6 @@ def statistical_summary():
 
     except Exception as e:
         return jsonify({"message": f"Erro interno: {e}"}), 500
-
 
 
 
