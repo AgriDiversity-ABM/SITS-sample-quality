@@ -13648,6 +13648,8 @@ def statistical_summary():
                 story_clusters.append(PageBreak())
         doc_clusters.build(story_clusters)
 
+        
+        
         # ------------------ 11) concatenated_results.txt ------------------
         concatenated_txt_path = os.path.join(base, 'concatenated_results.txt')
         with open(concatenated_txt_path, 'w', encoding='utf-8') as fout:
@@ -13667,11 +13669,11 @@ def statistical_summary():
                     "########  Results on Raw Data - end ########\n"
                     "##################################################################\n\n"
                 )
-
+        
             std_txt  = os.path.join('.', 'projs', proj, '02_evaluate_results_after_standard_scaler', 'results.txt')
             lof_txt  = os.path.join('.', 'projs', proj, '04_evaluate_results_after_lof', 'results.txt')
             clip_txt = os.path.join('.', 'projs', proj, '06_evaluate_results_after_optional_clipping', 'results.txt')
-
+        
             if os.path.isfile(std_txt):
                 fout.write(
                     "\n\n"
@@ -13687,7 +13689,7 @@ def statistical_summary():
                     "########  Results After Standard Scaler - end ########\n"
                     "##################################################################\n\n"
                 )
-
+        
             if SHOW_LOF and os.path.isfile(lof_txt):
                 fout.write(
                     "\n\n"
@@ -13703,7 +13705,7 @@ def statistical_summary():
                     "########  Results After LOF - end ########\n"
                     "##################################################################\n\n"
                 )
-
+        
             if os.path.isfile(clip_txt):
                 fout.write(
                     "\n\n"
@@ -13719,7 +13721,7 @@ def statistical_summary():
                     "########  Results After Optional Clipping - end ########\n"
                     "##################################################################\n\n"
                 )
-
+        
             for it in iteration_numbers:
                 header_line = (
                     "\n\n"
@@ -13728,14 +13730,14 @@ def statistical_summary():
                     "##################################################################\n\n"
                 )
                 fout.write(header_line)
-
+        
                 results_txt_path = os.path.join('.', 'projs', proj, '12_method', 'step_04', f'results_{it}', 'results.txt')
                 if os.path.isfile(results_txt_path):
                     with open(results_txt_path, 'r', encoding='utf-8') as fin:
                         fout.write(fin.read())
                 else:
                     fout.write(f"[Arquivo não encontrado: {results_txt_path}]\n")
-
+        
                 footer_line = (
                     "\n\n"
                     "##################################################################\n"
@@ -13743,9 +13745,10 @@ def statistical_summary():
                     "##################################################################\n\n"
                 )
                 fout.write(footer_line)
-
-                results_txt_turbo = os.path.join('.', 'projs', proj, '12_method', 'step_04', f'results_{it}_turbo', 'results.txt')
-                if os.path.isfile(results_txt_turbo):
+        
+                # (arquivo tuned fica em results_<it>_turbo, mas o TEXTO deve falar TUNED)
+                results_txt_tuned = os.path.join('.', 'projs', proj, '12_method', 'step_04', f'results_{it}_turbo', 'results.txt')
+                if os.path.isfile(results_txt_tuned):
                     tuned_header = (
                         "\n\n"
                         "##################################################################\n"
@@ -13753,8 +13756,8 @@ def statistical_summary():
                         "##################################################################\n\n"
                     )
                     fout.write(tuned_header)
-                    with open(results_txt_turbo, 'r', encoding='utf-8') as fin_turbo:
-                        fout.write(fin_turbo.read())
+                    with open(results_txt_tuned, 'r', encoding='utf-8') as fin_tuned:
+                        fout.write(fin_tuned.read())
                     tuned_footer = (
                         "\n\n"
                         "##################################################################\n"
@@ -13762,6 +13765,9 @@ def statistical_summary():
                         "##################################################################\n\n"
                     )
                     fout.write(tuned_footer)
+                
+                
+        
 
         # ------------------ 11.6) Samples por CSV ------------------
         def _count_rows_csv(csv_path: str):
@@ -14248,11 +14254,14 @@ def statistical_summary():
             plt.savefig(perf_small_png_path, dpi=300)
             plt.close()
 
+
+
+
         # =====================================================================
         # =================== 12) concatenated_results.pdf =====================
         # =====================================================================
         concatenated_pdf_path = os.path.join(base, 'concatenated_results.pdf')
-
+        
         cover_path = os.path.join(base, 'concatenated_cover_tmp.pdf')
         cover_doc = SimpleDocTemplate(cover_path, pagesize=letter)
         cover_styles = getSampleStyleSheet()
@@ -14264,13 +14273,13 @@ def statistical_summary():
             textColor=colors.white,
             leading=28
         )
-
+        
         def draw_cover_background(canvas, doc):
             canvas.saveState()
             canvas.setFillColor(colors.black)
             canvas.rect(0, 0, letter[0], letter[1], fill=1)
             canvas.restoreState()
-
+        
         cover_story = []
         main_cover_title = f"PROJECT {proj.upper()} RESULTS OF PERFORMANCE WITH RANDOM FOREST"
         words = main_cover_title.split()
@@ -14278,22 +14287,21 @@ def statistical_summary():
         cover_story.append(Spacer(1, letter[1] / 2 - 14))
         cover_story.append(Paragraph(broken, cover_style))
         cover_doc.build(cover_story, onFirstPage=draw_cover_background)
-
+        
         writer = PdfWriter()
         writer.addpages(PdfReader(cover_path).pages)
-
+        
         def _safe_name(s: str) -> str:
             return re.sub(r'[^A-Za-z0-9_.-]+', '_', s)[:80]
-
+        
         def _add_section_with_cover(section_title: str, section_pdf_path: str):
             if not os.path.isfile(section_pdf_path):
                 return
-            section_title = _turbo_to_tuned_preserve_case(section_title)
             full_section_title = f"PROJECT {proj.upper()} {section_title}"
             words = full_section_title.split()
             broken_title = "<br/>".join(words)
             tmp_cover = os.path.join(base, f'cover_{_safe_name(section_title)}_{uuid.uuid4().hex}.pdf')
-
+        
             created = False
             try:
                 tmp_doc = SimpleDocTemplate(tmp_cover, pagesize=letter)
@@ -14302,7 +14310,7 @@ def statistical_summary():
                 if os.path.isfile(tmp_cover):
                     created = True
                     writer.addpages(PdfReader(tmp_cover).pages)
-
+        
                 reader_sec = PdfReader(section_pdf_path)
                 if len(reader_sec.pages) > 1:
                     writer.addpages(reader_sec.pages[1:])
@@ -14320,36 +14328,43 @@ def statistical_summary():
                         os.remove(tmp_cover)
                     except Exception:
                         pass
-
+        
         rd_pdf = os.path.join('.', 'projs', proj, '00_preprocessing', 'evaluate_results_on_original_data', 'results.pdf')
         if os.path.isfile(rd_pdf):
             _add_section_with_cover("Results on Raw Data", rd_pdf)
-
+        
         std_pdf = os.path.join('.', 'projs', proj, '02_evaluate_results_after_standard_scaler', 'results.pdf')
         if os.path.isfile(std_pdf):
             _add_section_with_cover("Results after Standard Scaler", std_pdf)
-
+        
         lof_pdf = os.path.join('.', 'projs', proj, '04_evaluate_results_after_lof', 'results.pdf')
         if SHOW_LOF and os.path.isfile(lof_pdf):
             _add_section_with_cover("Results after Local Outlier Factor", lof_pdf)
-
+        
         clip_pdf = os.path.join('.', 'projs', proj, '06_evaluate_results_after_optional_clipping', 'results.pdf')
         if os.path.isfile(clip_pdf):
             _add_section_with_cover("Results after Optional Clipping", clip_pdf)
-
+        
         for it in iteration_numbers:
             results_pdf_path = os.path.join('.', 'projs', proj, '12_method', 'step_04', f'results_{it}', 'results.pdf')
             if os.path.isfile(results_pdf_path):
                 _add_section_with_cover(f"Results after Bayesian Exclusion number {it}", results_pdf_path)
-            results_pdf_turbo = os.path.join('.', 'projs', proj, '12_method', 'step_04', f'results_{it}_turbo', 'results.pdf')
-            if os.path.isfile(results_pdf_turbo):
-                _add_section_with_cover(f"Results after Bayesian Exclusion number {it} (TUNED)", results_pdf_turbo)
-
+        
+            # (PDF tuned fica em results_<it>_turbo, mas o TEXTO deve falar TUNED)
+            results_pdf_tuned = os.path.join('.', 'projs', proj, '12_method', 'step_04', f'results_{it}_turbo', 'results.pdf')
+            if os.path.isfile(results_pdf_tuned):
+                _add_section_with_cover(f"Results after Bayesian Exclusion number {it} (TUNED)", results_pdf_tuned)
+        
         writer.write(concatenated_pdf_path)
         try:
             os.remove(cover_path)
         except Exception:
             pass
+        
+
+
+
+
 
         # =====================================================================
         # ========================= final_summary.pdf ==========================
