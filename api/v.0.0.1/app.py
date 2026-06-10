@@ -72,16 +72,26 @@ import subprocess
 # ==================== QUALIDADE EDITORIAL DAS FIGURAS ====================
 # ====================             INÍCIO              ====================
 
-ARTWORK_DPI = 600
+ARTWORK_DPI = 505
 
 plt.rcParams['svg.fonttype'] = 'none'
 plt.rcParams['pdf.fonttype'] = 42
 plt.rcParams['ps.fonttype'] = 42
 
-def save_png_svg_pdf_eps(fig, png_path):
+def save_png_svg_pdf_eps(fig, png_path, files=None):
     """
-    Salva a mesma figura em PNG, SVG, PDF e EPS
-    com qualidade editorial compatível com Elsevier/JAG.
+    Salva a mesma figura nos formatos solicitados.
+
+    Parâmetros:
+      - fig: figura Matplotlib.
+      - png_path: caminho base esperado para o PNG.
+      - files: opcional.
+          None           -> gera png, svg, pdf e eps.
+          "png,svg"      -> gera apenas PNG e SVG.
+          ["png", "pdf"] -> gera apenas PNG e PDF.
+
+    Compatível com chamadas antigas:
+      save_png_svg_pdf_eps(fig, png_path)
     """
 
     import os
@@ -90,76 +100,102 @@ def save_png_svg_pdf_eps(fig, png_path):
 
     base_path, _ = os.path.splitext(png_path)
 
-    svg_path = base_path + '.svg'
-    pdf_path = base_path + '.pdf'
-    eps_path = base_path + '.eps'
+    paths = {
+        'png': png_path,
+        'svg': base_path + '.svg',
+        'pdf': base_path + '.pdf',
+        'eps': base_path + '.eps'
+    }
 
-    # PNG — mantém exatamente a lógica já usada
-    fig.savefig(
-        png_path,
-        bbox_inches='tight',
-        dpi=ARTWORK_DPI,
-        facecolor='white',
-        edgecolor='none',
-        format='png',
-        metadata={
-            'Software': 'Matplotlib',
-            'dpi': str(ARTWORK_DPI)
-        },
-        pil_kwargs={
-            "dpi": (ARTWORK_DPI, ARTWORK_DPI),
-            "compress_level": 1
+    if files is None:
+        selected_files = {'png', 'svg', 'pdf', 'eps'}
+    elif isinstance(files, str):
+        selected_files = {
+            f.strip().lower().lstrip('.')
+            for f in files.split(',')
+            if f.strip()
         }
-    )
+    else:
+        selected_files = {
+            str(f).strip().lower().lstrip('.')
+            for f in files
+            if str(f).strip()
+        }
 
-    # SVG — mantém exatamente a lógica já usada
-    fig.savefig(
-        svg_path,
-        bbox_inches='tight',
-        dpi=ARTWORK_DPI,
-        facecolor='white',
-        edgecolor='none',
-        format='svg',
-        metadata={
-            'Creator': 'Matplotlib',
-            'Description': f'{ARTWORK_DPI} DPI artwork'
-        }
-    )
+    valid_files = {'png', 'svg', 'pdf', 'eps'}
+    invalid_files = selected_files - valid_files
 
-    # PDF — mantém exatamente a lógica já usada
-    fig.savefig(
-        pdf_path,
-        bbox_inches='tight',
-        dpi=ARTWORK_DPI,
-        facecolor='white',
-        edgecolor='none',
-        format='pdf',
-        metadata={
-            'Creator': 'Matplotlib',
-            'Producer': 'Matplotlib PDF backend',
-            'Subject': f'{ARTWORK_DPI} DPI artwork'
-        }
-    )
+    if invalid_files:
+        raise ValueError(
+            f"Formato(s) inválido(s): {sorted(invalid_files)}. "
+            f"Use apenas: {sorted(valid_files)}."
+        )
 
-    # EPS — nova saída vetorial
-    fig.savefig(
-        eps_path,
-        bbox_inches='tight',
-        dpi=ARTWORK_DPI,
-        facecolor='white',
-        edgecolor='none',
-        format='eps',
-        metadata={
-            'Creator': 'Matplotlib',
-            'Title': f'{ARTWORK_DPI} DPI artwork'
-        }
-    )
+    if 'png' in selected_files:
+        fig.savefig(
+            paths['png'],
+            bbox_inches='tight',
+            dpi=ARTWORK_DPI,
+            facecolor='white',
+            edgecolor='none',
+            format='png',
+            metadata={
+                'Software': 'Matplotlib',
+                'dpi': str(ARTWORK_DPI)
+            },
+            pil_kwargs={
+                "dpi": (ARTWORK_DPI, ARTWORK_DPI),
+                "compress_level": 1
+            }
+        )
+
+    if 'svg' in selected_files:
+        fig.savefig(
+            paths['svg'],
+            bbox_inches='tight',
+            dpi=ARTWORK_DPI,
+            facecolor='white',
+            edgecolor='none',
+            format='svg',
+            metadata={
+                'Creator': 'Matplotlib',
+                'Description': f'{ARTWORK_DPI} DPI artwork'
+            }
+        )
+
+    if 'pdf' in selected_files:
+        fig.savefig(
+            paths['pdf'],
+            bbox_inches='tight',
+            dpi=ARTWORK_DPI,
+            facecolor='white',
+            edgecolor='none',
+            format='pdf',
+            metadata={
+                'Creator': 'Matplotlib',
+                'Producer': 'Matplotlib PDF backend',
+                'Subject': f'{ARTWORK_DPI} DPI artwork'
+            }
+        )
+
+    if 'eps' in selected_files:
+        fig.savefig(
+            paths['eps'],
+            bbox_inches='tight',
+            dpi=ARTWORK_DPI,
+            facecolor='white',
+            edgecolor='none',
+            format='eps',
+            metadata={
+                'Creator': 'Matplotlib',
+                'Title': f'{ARTWORK_DPI} DPI artwork'
+            }
+        )
 
 
 # ====================             TÉRMINO             ====================
 # ==================== QUALIDADE EDITORIAL DAS FIGURAS ====================
 # ====================             TÉRMINO             ====================
-
 
 
 app = FastAPI()
@@ -3576,6 +3612,8 @@ def occupancy_rate_by_size():
 
 
 ########################################################################################################
+###################### CÓDIGO USADO PARA GERAR Figure_3.png
+########################################################################################################
 # curl -X POST http://127.0.0.1:5000/mapping_original_labels \
 #   -F "project_name=lorena.60x60" \
 #   -F "iteration_number=12" \
@@ -3587,7 +3625,8 @@ def occupancy_rate_by_size():
 #   -F "learning_rate=0.45" \
 #   -F "neighborhood_function=gaussian" \
 #   -F "topology=hexagonal" \
-#   -F "data_columns=ndvi,evi,nir,mir"
+#   -F "data_columns=ndvi,evi,nir,mir" \
+#   -F "files=png"
 ########################################################################################################
 
 
@@ -3763,6 +3802,7 @@ def occupancy_rate_by_size():
 #   -F "data_columns=B02,B03,B04,B05,B06,B07,B08,B11,B12,B8A,EVI,NDVI"
 ########################################################################################################
 
+
 @app.route('/mapping_original_labels', methods=['POST'])
 def mapping_original_labels():
     """
@@ -3782,6 +3822,11 @@ def mapping_original_labels():
           * Modo 2 (BMU): df_pred[label_name]
           * Modo 1 (csv): df[label_name]
       - targets.csv e label_map.csv seguem a mesma convenção em ambos os modos.
+
+    Parâmetro opcional:
+      - files: formatos de figuras a gerar.
+               Ex.: "png", "png,svg", "png,svg,eps,pdf".
+               Se omitido, mantém o comportamento padrão de save_png_svg_pdf_eps.
     """
     try:
         import os, math, random
@@ -3795,7 +3840,6 @@ def mapping_original_labels():
         import matplotlib.pyplot as plt
         from matplotlib.patches import RegularPolygon, Patch
 
-        # ---------------- Parâmetros básicos ----------------
         required = [
             'project_name','label_name','dimensions',
             'sigma','learning_rate','neighborhood_function','topology','data_columns'
@@ -3806,85 +3850,79 @@ def mapping_original_labels():
 
         project_name          = request.form['project_name']
         label_name            = request.form['label_name']
-        dimensions            = request.form['dimensions']     # usado no modo 1
-        sigma                 = float(request.form['sigma'])   # usado no modo 1
-        learning_rate         = float(request.form['learning_rate'])  # usado no modo 1
-        neighborhood_function = request.form['neighborhood_function'] # usado no modo 1
-        topology              = request.form['topology']       # usado no modo 1
+        dimensions            = request.form['dimensions']
+        sigma                 = float(request.form['sigma'])
+        learning_rate         = float(request.form['learning_rate'])
+        neighborhood_function = request.form['neighborhood_function']
+        topology              = request.form['topology']
         data_columns_str      = request.form['data_columns']
 
-        # Campo de ID (nome da coluna no dataset de entrada)
         id_field_name = request.form.get('id', None)
         if id_field_name is not None:
             id_field_name = id_field_name.strip()
             if id_field_name == '':
                 id_field_name = None
 
-        # Parâmetros adicionais
         use_predicted_bmus = str(request.form.get('use_predicted_bmus', 'false')).strip().lower() in ('true','1','yes','y')
         iteration_number   = request.form.get('iteration_number')
         with_indexes       = str(request.form.get('with_indexes', 'false')).strip().lower() in ('true','1','yes','y')
 
-        # Diretório de saída
+        files_raw = request.form.get('files', None)
+
+        def _save_artwork(fig_obj, png_output_path):
+            if files_raw is None or str(files_raw).strip() == '':
+                save_png_svg_pdf_eps(fig_obj, png_output_path)
+            else:
+                save_png_svg_pdf_eps(fig_obj, png_output_path, files=files_raw)
+
         out_dir = os.path.join('.', 'projs', project_name, '08_mapping_original_labels')
         os.makedirs(out_dir, exist_ok=True)
 
-        # labels_map e info de grade (serão usados em ambos os modos)
         labels_map = defaultdict(lambda: defaultdict(int))
         unique_labels = []
         label_to_color = {}
         mapping_csv = None
-        rows = cols = None  # serão definidos em cada modo
+        rows = cols = None
 
-        # Pequena função de normalização de rótulo
         def _norm_label(x):
             if pd.isna(x):
                 return ''
             return str(x).strip()
 
-        # ====================================================
-        # MODO 2: usar BMUs previstos (SOM já treinada)
-        # ====================================================
         if use_predicted_bmus:
             if not iteration_number:
                 return jsonify({"message": "Parâmetro 'iteration_number' é obrigatório quando use_predicted_bmus=true."}), 400
 
-            it = int(iteration_number)
-
-            # Carrega SOM já treinada (passo 01)
             import pickle
             som_pkl = os.path.join('.', 'projs', project_name, '12_method', 'step_01',
                                    f'som_{iteration_number}', 'som.pkl')
             if not os.path.exists(som_pkl):
                 return jsonify({"message": f"SOM não encontrada: {som_pkl}"}), 400
+
             som = pickle.load(open(som_pkl, 'rb'))
             n_rows, n_cols, _ = som.get_weights().shape
 
-            # Lê os BMUs previstos (passo 02)
             step02_dir = os.path.join('.', 'projs', project_name, '12_method', 'step_02',
                                       f'cluster_{iteration_number}')
-            pred_csv   = os.path.join(step02_dir, 'predicted_labels.csv')
+            pred_csv = os.path.join(step02_dir, 'predicted_labels.csv')
+
             if not os.path.exists(pred_csv):
                 return jsonify({"message": f"Arquivo não encontrado: {pred_csv}"}), 400
+
             df_pred = pd.read_csv(pred_csv)
 
-            # Checa colunas mínimas
             for c in ('pos', 'bmu_x', 'bmu_y'):
                 if c not in df_pred.columns:
                     return jsonify({"message": f"Coluna '{c}' ausente em {pred_csv}."}), 400
 
-            # Rótulos: SEMPRE a partir de label_name
             if label_name not in df_pred.columns:
                 return jsonify({"message": f"Coluna '{label_name}' ausente em {pred_csv}."}), 400
+
             label_for_plot = df_pred[label_name].apply(_norm_label)
 
-            # ------------------------------------------------------------------
-            # targets.csv + label_map.csv
-            # ------------------------------------------------------------------
             le = LabelEncoder()
             encoded = le.fit_transform(label_for_plot.values)
 
-            # coluna 'id' para ambos os CSVs
             if id_field_name:
                 if id_field_name not in df_pred.columns:
                     return jsonify({
@@ -3894,26 +3932,19 @@ def mapping_original_labels():
             elif 'id' in df_pred.columns:
                 id_values = df_pred['id'].values
             else:
-                # fallback compatível com versões anteriores
                 id_values = df_pred['pos'].values
 
-            # targets.csv: pos, id, label (inteiro)
             pd.DataFrame({
                 'pos':   df_pred['pos'].values,
                 'id':    id_values,
                 'label': encoded
-            }).to_csv(
-                os.path.join(out_dir, 'targets.csv'), index=False
-            )
+            }).to_csv(os.path.join(out_dir, 'targets.csv'), index=False)
 
-            # label_map.csv
-            pd.DataFrame(
-                {'label_text': le.classes_, 'label_integer': range(len(le.classes_))}
-            ).to_csv(
-                os.path.join(out_dir, 'label_map.csv'), index=False
-            )
+            pd.DataFrame({
+                'label_text': le.classes_,
+                'label_integer': range(len(le.classes_))
+            }).to_csv(os.path.join(out_dir, 'label_map.csv'), index=False)
 
-            # targets_x_bmu.csv: pos, id, label (TEXTO), bmu_x, bmu_y
             mapping_csv = os.path.join(out_dir, 'targets_x_bmu.csv')
             df_txb = pd.DataFrame({
                 'pos':   df_pred['pos'].values,
@@ -3924,7 +3955,6 @@ def mapping_original_labels():
             })
             df_txb.to_csv(mapping_csv, index=False)
 
-            # Contagens por neurônio (chave = (linha, coluna) = (bmu_x, bmu_y))
             labels_map = defaultdict(lambda: defaultdict(int))
             for bx, by, lbl in zip(df_pred['bmu_x'], df_pred['bmu_y'], label_for_plot.values):
                 labels_map[(int(bx), int(by))][str(lbl)] += 1
@@ -3933,43 +3963,44 @@ def mapping_original_labels():
             cmap = plt.cm.get_cmap('tab20', len(unique_labels) if len(unique_labels) > 0 else 1)
             label_to_color = {lab: cmap(i) for i, lab in enumerate(unique_labels)}
 
-            # Dimensões da grade = dimensões da SOM
             rows, cols = n_rows, n_cols
 
-        # ====================================================
-        # MODO 1: csv_file enviado (treina SOM e calcula BMUs)
-        # ====================================================
         else:
             if 'csv_file' not in request.files:
                 return jsonify({"message": "Parâmetro 'csv_file' ausente."}), 400
+
             csv_file = request.files['csv_file']
             df = pd.read_csv(csv_file)
 
-            # Rótulo de origem: SEMPRE df[label_name]
             if label_name not in df.columns:
                 return jsonify({"message": f"Coluna de rótulo '{label_name}' não existe no CSV fornecido."}), 400
+
             label_for_plot = df[label_name].apply(_norm_label)
 
             prefixes = [c.strip().lower() for c in data_columns_str.split(',') if c.strip()]
             selected = [c for c in df.columns if any(c.lower().startswith(p) for p in prefixes)]
+
             if not selected:
                 return jsonify({"message": "Nenhuma coluna de dados encontrada."}), 400
 
-            # dimensões informadas (R x C)
             rows_ref, cols_ref = map(int, dimensions.lower().split('x'))
 
-            # treina SOM do zero
             from minisom import MiniSom
             som = MiniSom(
-                x=rows_ref, y=cols_ref, input_len=len(selected),
-                sigma=sigma, learning_rate=learning_rate,
-                neighborhood_function=neighborhood_function, topology=topology, random_seed=0
+                x=rows_ref,
+                y=cols_ref,
+                input_len=len(selected),
+                sigma=sigma,
+                learning_rate=learning_rate,
+                neighborhood_function=neighborhood_function,
+                topology=topology,
+                random_seed=0
             )
+
             data_values = df[selected].values
             som.random_weights_init(data_values)
             som.train_random(data_values, len(df))
 
-            # salva pesos
             weights_path = os.path.join(
                 out_dir,
                 f"{project_name}_weights__Dim={dimensions}_Sigma={sigma}_LearningRate={learning_rate}_"
@@ -3977,17 +4008,14 @@ def mapping_original_labels():
             )
             np.save(weights_path, som.get_weights())
 
-            # calcula BMUs (winner retorna (row, col) = (linha, coluna))
             bmu_results = []
             for i, vec in enumerate(data_values):
-                bx, by = som.winner(vec)  # bx = linha (y), by = coluna (x)
+                bx, by = som.winner(vec)
                 bmu_results.append((i, label_for_plot.iloc[i], bx, by))
 
-            # label encoder para o rótulo – mesma convenção
             le = LabelEncoder()
             encoded = le.fit_transform([str(r[1]) for r in bmu_results])
 
-            # coluna 'id' (mesma lógica de antes, reaproveitada para ambos os CSVs)
             if id_field_name:
                 if id_field_name not in df.columns:
                     return jsonify({
@@ -3997,26 +4025,19 @@ def mapping_original_labels():
             elif 'id' in df.columns:
                 id_values = df['id'].values
             else:
-                # fallback compatível com versões anteriores
                 id_values = np.arange(len(df))
 
-            # targets.csv: pos, id, label (inteiro)
             pd.DataFrame({
                 'pos':   [r[0] for r in bmu_results],
                 'id':    id_values,
                 'label': encoded
-            }).to_csv(
-                os.path.join(out_dir, 'targets.csv'), index=False
-            )
+            }).to_csv(os.path.join(out_dir, 'targets.csv'), index=False)
 
-            # label_map.csv
-            pd.DataFrame(
-                {'label_text': le.classes_, 'label_integer': range(len(le.classes_))}
-            ).to_csv(
-                os.path.join(out_dir, 'label_map.csv'), index=False
-            )
+            pd.DataFrame({
+                'label_text': le.classes_,
+                'label_integer': range(len(le.classes_))
+            }).to_csv(os.path.join(out_dir, 'label_map.csv'), index=False)
 
-            # targets_x_bmu.csv: pos, id, label (texto), bmu_x, bmu_y
             mapping_csv = os.path.join(out_dir, 'targets_x_bmu.csv')
             df_bmu = pd.DataFrame({
                 'pos':   [r[0] for r in bmu_results],
@@ -4027,7 +4048,6 @@ def mapping_original_labels():
             })
             df_bmu.to_csv(mapping_csv, index=False)
 
-            # Contagens por neurônio (chave = (linha, coluna) = (bx, by))
             labels_map = defaultdict(lambda: defaultdict(int))
             for _, lbl, bx, by in bmu_results:
                 labels_map[(int(bx), int(by))][str(lbl)] += 1
@@ -4036,36 +4056,56 @@ def mapping_original_labels():
             cmap = plt.cm.get_cmap('tab20', len(unique_labels))
             label_to_color = {lab: cmap(i) for i, lab in enumerate(unique_labels)}
 
-            # Dimensões da grade = dimensões informadas
             rows, cols = rows_ref, cols_ref
 
-        # ----------------------------------------------------
-        # Grade usada para desenho
-        # ----------------------------------------------------
         rows_plot, cols_plot = rows, cols
 
-        # ----------------------------------------------------
-        # Desenho (hex grid)
-        # ----------------------------------------------------
         y_off = math.sqrt(3) / 2.0
         radius_hex = 0.5
         d_bot = -0.22
 
-        # -- (A) Pizza por neurônio
+        legend_n_items = max(len(unique_labels), 1)
+
+        neural_grid_height_inches = max(10, rows_plot * 0.4) * 0.95
+        target_legend_height_inches = neural_grid_height_inches * 0.70
+
+        legend_fontsize = target_legend_height_inches * 72.0 / (legend_n_items * 1.45)
+        legend_fontsize = max(8, min(22, legend_fontsize))
+
+        legend_handleheight = max(1.0, min(2.2, legend_fontsize / 10.0))
+        legend_handlelength = max(1.2, min(2.8, legend_fontsize / 8.0))
+        legend_labelspacing = max(0.25, min(0.85, legend_fontsize / 28.0))
+
         fig = plt.figure(
             figsize=(max(10, cols_plot * 0.4), max(10, rows_plot * 0.4)),
             dpi=100
         )
         ax = fig.add_subplot(1, 1, 1)
-        fig.text(0.01, 0.98, f"Project {project_name} - Neuron Pie Grid",
-                 ha='left', va='top', fontsize=14, weight='bold')
+        fig.text(
+            0.01,
+            0.98,
+            f"Project {project_name} - Neuron Pie Grid",
+            ha='left',
+            va='top',
+            fontsize=14,
+            weight='bold'
+        )
 
         patches = [Patch(color=label_to_color[lab], label=lab) for lab in unique_labels]
-        fig.legend(handles=patches, loc='upper right', bbox_to_anchor=(1.12, 0.98),
-                   fancybox=True, shadow=True, ncol=1)
+        fig.legend(
+            handles=patches,
+            loc='upper right',
+            bbox_to_anchor=(1.12, 0.98),
+            fancybox=True,
+            shadow=True,
+            ncol=1,
+            prop={'size': legend_fontsize},
+            handleheight=legend_handleheight,
+            handlelength=legend_handlelength,
+            labelspacing=legend_labelspacing
+        )
         plt.subplots_adjust(top=0.95, right=0.78)
 
-        # y = linha (bx), x = coluna (by)
         for bx in range(rows_plot):
             for by in range(cols_plot):
                 cnts = labels_map.get((bx, by), {})
@@ -4073,57 +4113,110 @@ def mapping_original_labels():
                 cx, cy = (by + x_off, (rows_plot - 1 - bx) * y_off)
 
                 if not cnts:
-                    ax.add_patch(RegularPolygon(xy=(cx, cy), numVertices=6, radius=radius_hex,
-                                                orientation=math.radians(30),
-                                                facecolor='white', edgecolor='black', linewidth=0.8))
+                    ax.add_patch(RegularPolygon(
+                        xy=(cx, cy),
+                        numVertices=6,
+                        radius=radius_hex,
+                        orientation=math.radians(30),
+                        facecolor='white',
+                        edgecolor='black',
+                        linewidth=0.8
+                    ))
                     if with_indexes:
-                        rr = f"{(bx+1):02d}"; cc = f"{(by+1):02d}"
+                        rr = f"{(bx+1):02d}"
+                        cc = f"{(by+1):02d}"
                         ax.text(cx, cy + d_bot, f"{rr},{cc}", ha='center', va='center', fontsize=5)
                     continue
 
-                labs   = [l for l in unique_labels if cnts.get(l, 0) > 0]
-                fracs  = [cnts[l] for l in labs]
+                labs = [l for l in unique_labels if cnts.get(l, 0) > 0]
+                fracs = [cnts[l] for l in labs]
                 cols_c = [label_to_color[l] for l in labs]
 
-                hex_border = RegularPolygon((cx, cy), numVertices=6, radius=radius_hex,
-                                            orientation=math.radians(30),
-                                            facecolor='none', edgecolor='white', linewidth=0.3,
-                                            transform=ax.transData)
+                hex_border = RegularPolygon(
+                    (cx, cy),
+                    numVertices=6,
+                    radius=radius_hex,
+                    orientation=math.radians(30),
+                    facecolor='none',
+                    edgecolor='white',
+                    linewidth=0.3,
+                    transform=ax.transData
+                )
 
-                wedges, _ = ax.pie(fracs, startangle=90, radius=radius_hex*0.98,
-                                   colors=cols_c, center=(cx, cy),
-                                   wedgeprops={'linewidth': 0})
+                wedges, _ = ax.pie(
+                    fracs,
+                    startangle=90,
+                    radius=radius_hex * 0.98,
+                    colors=cols_c,
+                    center=(cx, cy),
+                    wedgeprops={'linewidth': 0}
+                )
+
                 for w in wedges:
                     w.set_clip_path(hex_border)
 
-                ax.add_patch(RegularPolygon((cx, cy), numVertices=6, radius=radius_hex,
-                                            orientation=math.radians(30),
-                                            facecolor='none', edgecolor='black', linewidth=0.8))
+                ax.add_patch(RegularPolygon(
+                    (cx, cy),
+                    numVertices=6,
+                    radius=radius_hex,
+                    orientation=math.radians(30),
+                    facecolor='none',
+                    edgecolor='black',
+                    linewidth=0.8
+                ))
+
                 if with_indexes:
-                    rr = f"{(bx+1):02d}"; cc = f"{(by+1):02d}"
+                    rr = f"{(bx+1):02d}"
+                    cc = f"{(by+1):02d}"
                     ax.text(cx, cy + d_bot, f"{rr},{cc}", ha='center', va='center', fontsize=5)
 
         ax.set_xlim(-0.5, cols_plot)
         ax.set_ylim(-0.5, rows_plot * y_off + y_off / 2)
-        ax.set_aspect('equal'); ax.axis('off')
+        ax.set_aspect('equal')
+        ax.axis('off')
+
         pie_png = os.path.join(out_dir, 'targets_x_bmu.png')
-        plt.savefig(pie_png, bbox_inches='tight')
+        _save_artwork(fig, pie_png)
         plt.close(fig)
 
-        # -- (B) Rótulo majoritário por neurônio
         fig2 = plt.figure(
             figsize=(max(10, cols_plot * 0.4), max(10, rows_plot * 0.4)),
             dpi=100
         )
         ax2 = fig2.add_subplot(1, 1, 1)
-        fig2.text(0.01, 0.98, f"Project {project_name} - Majority Label",
-                  ha='left', va='top', fontsize=14, weight='bold')
+        fig2.text(
+            0.01,
+            0.98,
+            f"Project {project_name} - Majority Label",
+            ha='left',
+            va='top',
+            fontsize=14,
+            weight='bold'
+        )
 
-        patches_major = [Patch(facecolor=label_to_color[l], edgecolor='white', label=l) for l in unique_labels]
-        unused_patch  = Patch(facecolor='white', edgecolor='black', linewidth=1.2, label='Unused')
-        fig2.legend([unused_patch] + patches_major, ['Unused'] + unique_labels,
-                    loc='upper left', bbox_to_anchor=(1.05, 1.02),
-                    fancybox=True, shadow=True)
+        patches_major = [
+            Patch(facecolor=label_to_color[l], edgecolor='white', label=l)
+            for l in unique_labels
+        ]
+        unused_patch = Patch(
+            facecolor='white',
+            edgecolor='black',
+            linewidth=1.2,
+            label='Unused'
+        )
+
+        fig2.legend(
+            [unused_patch] + patches_major,
+            ['Unused'] + unique_labels,
+            loc='upper left',
+            bbox_to_anchor=(1.05, 1.02),
+            fancybox=True,
+            shadow=True,
+            prop={'size': legend_fontsize},
+            handleheight=legend_handleheight,
+            handlelength=legend_handlelength,
+            labelspacing=legend_labelspacing
+        )
         plt.subplots_adjust(top=0.93, right=0.82)
 
         for bx in range(rows_plot):
@@ -4133,30 +4226,47 @@ def mapping_original_labels():
                 cx, cy = (by + x_off, (rows_plot - 1 - bx) * y_off)
 
                 if not cnts:
-                    ax2.add_patch(RegularPolygon(xy=(cx, cy), numVertices=6, radius=radius_hex,
-                                                 orientation=math.radians(30),
-                                                 facecolor='white', edgecolor='black', linewidth=0.8))
+                    ax2.add_patch(RegularPolygon(
+                        xy=(cx, cy),
+                        numVertices=6,
+                        radius=radius_hex,
+                        orientation=math.radians(30),
+                        facecolor='white',
+                        edgecolor='black',
+                        linewidth=0.8
+                    ))
                     if with_indexes:
-                        rr = f"{(bx+1):02d}"; cc = f"{(by+1):02d}"
+                        rr = f"{(bx+1):02d}"
+                        cc = f"{(by+1):02d}"
                         ax2.text(cx, cy + d_bot, f"{rr},{cc}", ha='center', va='center', fontsize=5)
                     continue
 
                 maxc = max(cnts.values())
                 winners = [l for l, c in cnts.items() if c == maxc]
                 chosen = random.choice(winners)
-                ax2.add_patch(RegularPolygon(xy=(cx, cy), numVertices=6, radius=radius_hex,
-                                             orientation=math.radians(30),
-                                             facecolor=label_to_color[chosen],
-                                             edgecolor='white', linewidth=0.2))
+
+                ax2.add_patch(RegularPolygon(
+                    xy=(cx, cy),
+                    numVertices=6,
+                    radius=radius_hex,
+                    orientation=math.radians(30),
+                    facecolor=label_to_color[chosen],
+                    edgecolor='white',
+                    linewidth=0.2
+                ))
+
                 if with_indexes:
-                    rr = f"{(bx+1):02d}"; cc = f"{(by+1):02d}"
+                    rr = f"{(bx+1):02d}"
+                    cc = f"{(by+1):02d}"
                     ax2.text(cx, cy + d_bot, f"{rr},{cc}", ha='center', va='center', fontsize=5)
 
         ax2.set_xlim(-0.5, cols_plot)
         ax2.set_ylim(-0.5, rows_plot * y_off + y_off / 2)
-        ax2.set_aspect('equal'); ax2.axis('off')
+        ax2.set_aspect('equal')
+        ax2.axis('off')
+
         maj_png = os.path.join(out_dir, 'targets_x_bmu__majority_label.png')
-        plt.savefig(maj_png, bbox_inches='tight')
+        _save_artwork(fig2, maj_png)
         plt.close(fig2)
 
         return jsonify({
@@ -4168,6 +4278,837 @@ def mapping_original_labels():
 
     except Exception as e:
         return jsonify({"message": f"Erro inesperado: {e}"}), 500
+
+
+
+
+# @app.route('/mapping_original_labels', methods=['POST'])
+# def mapping_original_labels():
+#     """
+#     Mapeia registros a neurônios da SOM, gerando:
+#       - targets_x_bmu.csv
+#       - targets.csv
+#       - label_map.csv
+#       - targets_x_bmu.png
+#       - targets_x_bmu__majority_label.png
+
+#     Dois modos:
+#       Modo 1: csv_file enviado (use_predicted_bmus=false)  -> treina SOM e calcula BMUs
+#       Modo 2: iteration_number + use_predicted_bmus=true   -> carrega SOM e usa BMUs previstos
+
+#     Observação importante:
+#       - O rótulo usado sempre vem da coluna 'label_name':
+#           * Modo 2 (BMU): df_pred[label_name]
+#           * Modo 1 (csv): df[label_name]
+#       - targets.csv e label_map.csv seguem a mesma convenção em ambos os modos.
+#     """
+#     try:
+#         import os, math, random
+#         from collections import defaultdict
+#         import numpy as np
+#         import pandas as pd
+#         from flask import request, jsonify
+#         from sklearn.preprocessing import LabelEncoder
+#         import matplotlib
+#         matplotlib.use('Agg')
+#         import matplotlib.pyplot as plt
+#         from matplotlib.patches import RegularPolygon, Patch
+
+#         # ---------------- Parâmetros básicos ----------------
+#         required = [
+#             'project_name','label_name','dimensions',
+#             'sigma','learning_rate','neighborhood_function','topology','data_columns'
+#         ]
+#         for p in required:
+#             if p not in request.form:
+#                 return jsonify({"message": f"Parâmetro '{p}' ausente."}), 400
+
+#         project_name          = request.form['project_name']
+#         label_name            = request.form['label_name']
+#         dimensions            = request.form['dimensions']     # usado no modo 1
+#         sigma                 = float(request.form['sigma'])   # usado no modo 1
+#         learning_rate         = float(request.form['learning_rate'])  # usado no modo 1
+#         neighborhood_function = request.form['neighborhood_function'] # usado no modo 1
+#         topology              = request.form['topology']       # usado no modo 1
+#         data_columns_str      = request.form['data_columns']
+
+#         # Campo de ID (nome da coluna no dataset de entrada)
+#         id_field_name = request.form.get('id', None)
+#         if id_field_name is not None:
+#             id_field_name = id_field_name.strip()
+#             if id_field_name == '':
+#                 id_field_name = None
+
+#         # Parâmetros adicionais
+#         use_predicted_bmus = str(request.form.get('use_predicted_bmus', 'false')).strip().lower() in ('true','1','yes','y')
+#         iteration_number   = request.form.get('iteration_number')
+#         with_indexes       = str(request.form.get('with_indexes', 'false')).strip().lower() in ('true','1','yes','y')
+
+#         # Diretório de saída
+#         out_dir = os.path.join('.', 'projs', project_name, '08_mapping_original_labels')
+#         os.makedirs(out_dir, exist_ok=True)
+
+#         # labels_map e info de grade (serão usados em ambos os modos)
+#         labels_map = defaultdict(lambda: defaultdict(int))
+#         unique_labels = []
+#         label_to_color = {}
+#         mapping_csv = None
+#         rows = cols = None  # serão definidos em cada modo
+
+#         # Pequena função de normalização de rótulo
+#         def _norm_label(x):
+#             if pd.isna(x):
+#                 return ''
+#             return str(x).strip()
+
+#         # ====================================================
+#         # MODO 2: usar BMUs previstos (SOM já treinada)
+#         # ====================================================
+#         if use_predicted_bmus:
+#             if not iteration_number:
+#                 return jsonify({"message": "Parâmetro 'iteration_number' é obrigatório quando use_predicted_bmus=true."}), 400
+
+#             it = int(iteration_number)
+
+#             # Carrega SOM já treinada (passo 01)
+#             import pickle
+#             som_pkl = os.path.join('.', 'projs', project_name, '12_method', 'step_01',
+#                                    f'som_{iteration_number}', 'som.pkl')
+#             if not os.path.exists(som_pkl):
+#                 return jsonify({"message": f"SOM não encontrada: {som_pkl}"}), 400
+#             som = pickle.load(open(som_pkl, 'rb'))
+#             n_rows, n_cols, _ = som.get_weights().shape
+
+#             # Lê os BMUs previstos (passo 02)
+#             step02_dir = os.path.join('.', 'projs', project_name, '12_method', 'step_02',
+#                                       f'cluster_{iteration_number}')
+#             pred_csv   = os.path.join(step02_dir, 'predicted_labels.csv')
+#             if not os.path.exists(pred_csv):
+#                 return jsonify({"message": f"Arquivo não encontrado: {pred_csv}"}), 400
+#             df_pred = pd.read_csv(pred_csv)
+
+#             # Checa colunas mínimas
+#             for c in ('pos', 'bmu_x', 'bmu_y'):
+#                 if c not in df_pred.columns:
+#                     return jsonify({"message": f"Coluna '{c}' ausente em {pred_csv}."}), 400
+
+#             # Rótulos: SEMPRE a partir de label_name
+#             if label_name not in df_pred.columns:
+#                 return jsonify({"message": f"Coluna '{label_name}' ausente em {pred_csv}."}), 400
+#             label_for_plot = df_pred[label_name].apply(_norm_label)
+
+#             # ------------------------------------------------------------------
+#             # targets.csv + label_map.csv
+#             # ------------------------------------------------------------------
+#             le = LabelEncoder()
+#             encoded = le.fit_transform(label_for_plot.values)
+
+#             # coluna 'id' para ambos os CSVs
+#             if id_field_name:
+#                 if id_field_name not in df_pred.columns:
+#                     return jsonify({
+#                         "message": f"Coluna de ID '{id_field_name}' não encontrada em {pred_csv}."
+#                     }), 400
+#                 id_values = df_pred[id_field_name].values
+#             elif 'id' in df_pred.columns:
+#                 id_values = df_pred['id'].values
+#             else:
+#                 # fallback compatível com versões anteriores
+#                 id_values = df_pred['pos'].values
+
+#             # targets.csv: pos, id, label (inteiro)
+#             pd.DataFrame({
+#                 'pos':   df_pred['pos'].values,
+#                 'id':    id_values,
+#                 'label': encoded
+#             }).to_csv(
+#                 os.path.join(out_dir, 'targets.csv'), index=False
+#             )
+
+#             # label_map.csv
+#             pd.DataFrame(
+#                 {'label_text': le.classes_, 'label_integer': range(len(le.classes_))}
+#             ).to_csv(
+#                 os.path.join(out_dir, 'label_map.csv'), index=False
+#             )
+
+#             # targets_x_bmu.csv: pos, id, label (TEXTO), bmu_x, bmu_y
+#             mapping_csv = os.path.join(out_dir, 'targets_x_bmu.csv')
+#             df_txb = pd.DataFrame({
+#                 'pos':   df_pred['pos'].values,
+#                 'id':    id_values,
+#                 'label': label_for_plot.values,
+#                 'bmu_x': df_pred['bmu_x'].values,
+#                 'bmu_y': df_pred['bmu_y'].values
+#             })
+#             df_txb.to_csv(mapping_csv, index=False)
+
+#             # Contagens por neurônio (chave = (linha, coluna) = (bmu_x, bmu_y))
+#             labels_map = defaultdict(lambda: defaultdict(int))
+#             for bx, by, lbl in zip(df_pred['bmu_x'], df_pred['bmu_y'], label_for_plot.values):
+#                 labels_map[(int(bx), int(by))][str(lbl)] += 1
+
+#             unique_labels = sorted([str(x) for x in le.classes_])
+#             cmap = plt.cm.get_cmap('tab20', len(unique_labels) if len(unique_labels) > 0 else 1)
+#             label_to_color = {lab: cmap(i) for i, lab in enumerate(unique_labels)}
+
+#             # Dimensões da grade = dimensões da SOM
+#             rows, cols = n_rows, n_cols
+
+#         # ====================================================
+#         # MODO 1: csv_file enviado (treina SOM e calcula BMUs)
+#         # ====================================================
+#         else:
+#             if 'csv_file' not in request.files:
+#                 return jsonify({"message": "Parâmetro 'csv_file' ausente."}), 400
+#             csv_file = request.files['csv_file']
+#             df = pd.read_csv(csv_file)
+
+#             # Rótulo de origem: SEMPRE df[label_name]
+#             if label_name not in df.columns:
+#                 return jsonify({"message": f"Coluna de rótulo '{label_name}' não existe no CSV fornecido."}), 400
+#             label_for_plot = df[label_name].apply(_norm_label)
+
+#             prefixes = [c.strip().lower() for c in data_columns_str.split(',') if c.strip()]
+#             selected = [c for c in df.columns if any(c.lower().startswith(p) for p in prefixes)]
+#             if not selected:
+#                 return jsonify({"message": "Nenhuma coluna de dados encontrada."}), 400
+
+#             # dimensões informadas (R x C)
+#             rows_ref, cols_ref = map(int, dimensions.lower().split('x'))
+
+#             # treina SOM do zero
+#             from minisom import MiniSom
+#             som = MiniSom(
+#                 x=rows_ref, y=cols_ref, input_len=len(selected),
+#                 sigma=sigma, learning_rate=learning_rate,
+#                 neighborhood_function=neighborhood_function, topology=topology, random_seed=0
+#             )
+#             data_values = df[selected].values
+#             som.random_weights_init(data_values)
+#             som.train_random(data_values, len(df))
+
+#             # salva pesos
+#             weights_path = os.path.join(
+#                 out_dir,
+#                 f"{project_name}_weights__Dim={dimensions}_Sigma={sigma}_LearningRate={learning_rate}_"
+#                 f"NeighborhoodFunction={neighborhood_function}_Topology={topology}.npy"
+#             )
+#             np.save(weights_path, som.get_weights())
+
+#             # calcula BMUs (winner retorna (row, col) = (linha, coluna))
+#             bmu_results = []
+#             for i, vec in enumerate(data_values):
+#                 bx, by = som.winner(vec)  # bx = linha (y), by = coluna (x)
+#                 bmu_results.append((i, label_for_plot.iloc[i], bx, by))
+
+#             # label encoder para o rótulo – mesma convenção
+#             le = LabelEncoder()
+#             encoded = le.fit_transform([str(r[1]) for r in bmu_results])
+
+#             # coluna 'id' (mesma lógica de antes, reaproveitada para ambos os CSVs)
+#             if id_field_name:
+#                 if id_field_name not in df.columns:
+#                     return jsonify({
+#                         "message": f"Coluna de ID '{id_field_name}' não existe no CSV fornecido."
+#                     }), 400
+#                 id_values = df[id_field_name].values
+#             elif 'id' in df.columns:
+#                 id_values = df['id'].values
+#             else:
+#                 # fallback compatível com versões anteriores
+#                 id_values = np.arange(len(df))
+
+#             # targets.csv: pos, id, label (inteiro)
+#             pd.DataFrame({
+#                 'pos':   [r[0] for r in bmu_results],
+#                 'id':    id_values,
+#                 'label': encoded
+#             }).to_csv(
+#                 os.path.join(out_dir, 'targets.csv'), index=False
+#             )
+
+#             # label_map.csv
+#             pd.DataFrame(
+#                 {'label_text': le.classes_, 'label_integer': range(len(le.classes_))}
+#             ).to_csv(
+#                 os.path.join(out_dir, 'label_map.csv'), index=False
+#             )
+
+#             # targets_x_bmu.csv: pos, id, label (texto), bmu_x, bmu_y
+#             mapping_csv = os.path.join(out_dir, 'targets_x_bmu.csv')
+#             df_bmu = pd.DataFrame({
+#                 'pos':   [r[0] for r in bmu_results],
+#                 'id':    id_values,
+#                 'label': [r[1] for r in bmu_results],
+#                 'bmu_x': [r[2] for r in bmu_results],
+#                 'bmu_y': [r[3] for r in bmu_results],
+#             })
+#             df_bmu.to_csv(mapping_csv, index=False)
+
+#             # Contagens por neurônio (chave = (linha, coluna) = (bx, by))
+#             labels_map = defaultdict(lambda: defaultdict(int))
+#             for _, lbl, bx, by in bmu_results:
+#                 labels_map[(int(bx), int(by))][str(lbl)] += 1
+
+#             unique_labels = sorted([str(x) for x in le.classes_])
+#             cmap = plt.cm.get_cmap('tab20', len(unique_labels))
+#             label_to_color = {lab: cmap(i) for i, lab in enumerate(unique_labels)}
+
+#             # Dimensões da grade = dimensões informadas
+#             rows, cols = rows_ref, cols_ref
+
+#         # ----------------------------------------------------
+#         # Grade usada para desenho
+#         # ----------------------------------------------------
+#         rows_plot, cols_plot = rows, cols
+
+#         # ----------------------------------------------------
+#         # Desenho (hex grid)
+#         # ----------------------------------------------------
+#         y_off = math.sqrt(3) / 2.0
+#         radius_hex = 0.5
+#         d_bot = -0.22
+
+#         # -- (A) Pizza por neurônio
+#         fig = plt.figure(
+#             figsize=(max(10, cols_plot * 0.4), max(10, rows_plot * 0.4)),
+#             dpi=100
+#         )
+#         ax = fig.add_subplot(1, 1, 1)
+#         fig.text(0.01, 0.98, f"Project {project_name} - Neuron Pie Grid",
+#                  ha='left', va='top', fontsize=14, weight='bold')
+
+#         patches = [Patch(color=label_to_color[lab], label=lab) for lab in unique_labels]
+#         fig.legend(handles=patches, loc='upper right', bbox_to_anchor=(1.12, 0.98),
+#                    fancybox=True, shadow=True, ncol=1)
+#         plt.subplots_adjust(top=0.95, right=0.78)
+
+#         # y = linha (bx), x = coluna (by)
+#         for bx in range(rows_plot):
+#             for by in range(cols_plot):
+#                 cnts = labels_map.get((bx, by), {})
+#                 x_off = 0.5 if (bx % 2) else 0.0
+#                 cx, cy = (by + x_off, (rows_plot - 1 - bx) * y_off)
+
+#                 if not cnts:
+#                     ax.add_patch(RegularPolygon(xy=(cx, cy), numVertices=6, radius=radius_hex,
+#                                                 orientation=math.radians(30),
+#                                                 facecolor='white', edgecolor='black', linewidth=0.8))
+#                     if with_indexes:
+#                         rr = f"{(bx+1):02d}"; cc = f"{(by+1):02d}"
+#                         ax.text(cx, cy + d_bot, f"{rr},{cc}", ha='center', va='center', fontsize=5)
+#                     continue
+
+#                 labs   = [l for l in unique_labels if cnts.get(l, 0) > 0]
+#                 fracs  = [cnts[l] for l in labs]
+#                 cols_c = [label_to_color[l] for l in labs]
+
+#                 hex_border = RegularPolygon((cx, cy), numVertices=6, radius=radius_hex,
+#                                             orientation=math.radians(30),
+#                                             facecolor='none', edgecolor='white', linewidth=0.3,
+#                                             transform=ax.transData)
+
+#                 wedges, _ = ax.pie(fracs, startangle=90, radius=radius_hex*0.98,
+#                                    colors=cols_c, center=(cx, cy),
+#                                    wedgeprops={'linewidth': 0})
+#                 for w in wedges:
+#                     w.set_clip_path(hex_border)
+
+#                 ax.add_patch(RegularPolygon((cx, cy), numVertices=6, radius=radius_hex,
+#                                             orientation=math.radians(30),
+#                                             facecolor='none', edgecolor='black', linewidth=0.8))
+#                 if with_indexes:
+#                     rr = f"{(bx+1):02d}"; cc = f"{(by+1):02d}"
+#                     ax.text(cx, cy + d_bot, f"{rr},{cc}", ha='center', va='center', fontsize=5)
+
+#         ax.set_xlim(-0.5, cols_plot)
+#         ax.set_ylim(-0.5, rows_plot * y_off + y_off / 2)
+#         ax.set_aspect('equal'); ax.axis('off')
+#         pie_png = os.path.join(out_dir, 'targets_x_bmu.png')
+#         plt.savefig(pie_png, bbox_inches='tight')
+#         plt.close(fig)
+
+#         # -- (B) Rótulo majoritário por neurônio
+#         fig2 = plt.figure(
+#             figsize=(max(10, cols_plot * 0.4), max(10, rows_plot * 0.4)),
+#             dpi=100
+#         )
+#         ax2 = fig2.add_subplot(1, 1, 1)
+#         fig2.text(0.01, 0.98, f"Project {project_name} - Majority Label",
+#                   ha='left', va='top', fontsize=14, weight='bold')
+
+#         patches_major = [Patch(facecolor=label_to_color[l], edgecolor='white', label=l) for l in unique_labels]
+#         unused_patch  = Patch(facecolor='white', edgecolor='black', linewidth=1.2, label='Unused')
+#         fig2.legend([unused_patch] + patches_major, ['Unused'] + unique_labels,
+#                     loc='upper left', bbox_to_anchor=(1.05, 1.02),
+#                     fancybox=True, shadow=True)
+#         plt.subplots_adjust(top=0.93, right=0.82)
+
+#         for bx in range(rows_plot):
+#             for by in range(cols_plot):
+#                 cnts = labels_map.get((bx, by), {})
+#                 x_off = 0.5 if (bx % 2) else 0.0
+#                 cx, cy = (by + x_off, (rows_plot - 1 - bx) * y_off)
+
+#                 if not cnts:
+#                     ax2.add_patch(RegularPolygon(xy=(cx, cy), numVertices=6, radius=radius_hex,
+#                                                  orientation=math.radians(30),
+#                                                  facecolor='white', edgecolor='black', linewidth=0.8))
+#                     if with_indexes:
+#                         rr = f"{(bx+1):02d}"; cc = f"{(by+1):02d}"
+#                         ax2.text(cx, cy + d_bot, f"{rr},{cc}", ha='center', va='center', fontsize=5)
+#                     continue
+
+#                 maxc = max(cnts.values())
+#                 winners = [l for l, c in cnts.items() if c == maxc]
+#                 chosen = random.choice(winners)
+#                 ax2.add_patch(RegularPolygon(xy=(cx, cy), numVertices=6, radius=radius_hex,
+#                                              orientation=math.radians(30),
+#                                              facecolor=label_to_color[chosen],
+#                                              edgecolor='white', linewidth=0.2))
+#                 if with_indexes:
+#                     rr = f"{(bx+1):02d}"; cc = f"{(by+1):02d}"
+#                     ax2.text(cx, cy + d_bot, f"{rr},{cc}", ha='center', va='center', fontsize=5)
+
+#         ax2.set_xlim(-0.5, cols_plot)
+#         ax2.set_ylim(-0.5, rows_plot * y_off + y_off / 2)
+#         ax2.set_aspect('equal'); ax2.axis('off')
+#         maj_png = os.path.join(out_dir, 'targets_x_bmu__majority_label.png')
+#         plt.savefig(maj_png, bbox_inches='tight')
+#         plt.close(fig2)
+
+#         return jsonify({
+#             "message":        "Mapeamento concluído com sucesso.",
+#             "mapping_csv":    mapping_csv,
+#             "pie_chart":      pie_png,
+#             "majority_chart": maj_png
+#         }), 200
+
+#     except Exception as e:
+#         return jsonify({"message": f"Erro inesperado: {e}"}), 500
+
+
+# @app.route('/mapping_original_labels', methods=['POST'])
+# def mapping_original_labels():
+#     """
+#     Mapeia registros a neurônios da SOM, gerando:
+#       - targets_x_bmu.csv
+#       - targets.csv
+#       - label_map.csv
+#       - targets_x_bmu.png
+#       - targets_x_bmu__majority_label.png
+
+#     Dois modos:
+#       Modo 1: csv_file enviado (use_predicted_bmus=false)  -> treina SOM e calcula BMUs
+#       Modo 2: iteration_number + use_predicted_bmus=true   -> carrega SOM e usa BMUs previstos
+
+#     Observação importante:
+#       - O rótulo usado sempre vem da coluna 'label_name':
+#           * Modo 2 (BMU): df_pred[label_name]
+#           * Modo 1 (csv): df[label_name]
+#       - targets.csv e label_map.csv seguem a mesma convenção em ambos os modos.
+
+#     Parâmetro opcional:
+#       - files: formatos de figuras a gerar.
+#                Ex.: "png", "png,svg", "png,svg,eps,pdf".
+#                Se omitido, mantém o comportamento padrão de save_png_svg_pdf_eps.
+#     """
+#     try:
+#         import os, math, random
+#         from collections import defaultdict
+#         import numpy as np
+#         import pandas as pd
+#         from flask import request, jsonify
+#         from sklearn.preprocessing import LabelEncoder
+#         import matplotlib
+#         matplotlib.use('Agg')
+#         import matplotlib.pyplot as plt
+#         from matplotlib.patches import RegularPolygon, Patch
+
+#         # ---------------- Parâmetros básicos ----------------
+#         required = [
+#             'project_name','label_name','dimensions',
+#             'sigma','learning_rate','neighborhood_function','topology','data_columns'
+#         ]
+#         for p in required:
+#             if p not in request.form:
+#                 return jsonify({"message": f"Parâmetro '{p}' ausente."}), 400
+
+#         project_name          = request.form['project_name']
+#         label_name            = request.form['label_name']
+#         dimensions            = request.form['dimensions']     # usado no modo 1
+#         sigma                 = float(request.form['sigma'])   # usado no modo 1
+#         learning_rate         = float(request.form['learning_rate'])  # usado no modo 1
+#         neighborhood_function = request.form['neighborhood_function'] # usado no modo 1
+#         topology              = request.form['topology']       # usado no modo 1
+#         data_columns_str      = request.form['data_columns']
+
+#         # Campo de ID (nome da coluna no dataset de entrada)
+#         id_field_name = request.form.get('id', None)
+#         if id_field_name is not None:
+#             id_field_name = id_field_name.strip()
+#             if id_field_name == '':
+#                 id_field_name = None
+
+#         # Parâmetros adicionais
+#         use_predicted_bmus = str(request.form.get('use_predicted_bmus', 'false')).strip().lower() in ('true','1','yes','y')
+#         iteration_number   = request.form.get('iteration_number')
+#         with_indexes       = str(request.form.get('with_indexes', 'false')).strip().lower() in ('true','1','yes','y')
+
+#         # ---------------- files ----------------
+#         files_raw = request.form.get('files', None)
+
+#         def _save_artwork(fig_obj, png_output_path):
+#             if files_raw is None or str(files_raw).strip() == '':
+#                 save_png_svg_pdf_eps(fig_obj, png_output_path)
+#             else:
+#                 save_png_svg_pdf_eps(fig_obj, png_output_path, files=files_raw)
+
+#         # Diretório de saída
+#         out_dir = os.path.join('.', 'projs', project_name, '08_mapping_original_labels')
+#         os.makedirs(out_dir, exist_ok=True)
+
+#         # labels_map e info de grade (serão usados em ambos os modos)
+#         labels_map = defaultdict(lambda: defaultdict(int))
+#         unique_labels = []
+#         label_to_color = {}
+#         mapping_csv = None
+#         rows = cols = None  # serão definidos em cada modo
+
+#         # Pequena função de normalização de rótulo
+#         def _norm_label(x):
+#             if pd.isna(x):
+#                 return ''
+#             return str(x).strip()
+
+#         # ====================================================
+#         # MODO 2: usar BMUs previstos (SOM já treinada)
+#         # ====================================================
+#         if use_predicted_bmus:
+#             if not iteration_number:
+#                 return jsonify({"message": "Parâmetro 'iteration_number' é obrigatório quando use_predicted_bmus=true."}), 400
+
+#             it = int(iteration_number)
+
+#             # Carrega SOM já treinada (passo 01)
+#             import pickle
+#             som_pkl = os.path.join('.', 'projs', project_name, '12_method', 'step_01',
+#                                    f'som_{iteration_number}', 'som.pkl')
+#             if not os.path.exists(som_pkl):
+#                 return jsonify({"message": f"SOM não encontrada: {som_pkl}"}), 400
+#             som = pickle.load(open(som_pkl, 'rb'))
+#             n_rows, n_cols, _ = som.get_weights().shape
+
+#             # Lê os BMUs previstos (passo 02)
+#             step02_dir = os.path.join('.', 'projs', project_name, '12_method', 'step_02',
+#                                       f'cluster_{iteration_number}')
+#             pred_csv   = os.path.join(step02_dir, 'predicted_labels.csv')
+#             if not os.path.exists(pred_csv):
+#                 return jsonify({"message": f"Arquivo não encontrado: {pred_csv}"}), 400
+#             df_pred = pd.read_csv(pred_csv)
+
+#             # Checa colunas mínimas
+#             for c in ('pos', 'bmu_x', 'bmu_y'):
+#                 if c not in df_pred.columns:
+#                     return jsonify({"message": f"Coluna '{c}' ausente em {pred_csv}."}), 400
+
+#             # Rótulos: SEMPRE a partir de label_name
+#             if label_name not in df_pred.columns:
+#                 return jsonify({"message": f"Coluna '{label_name}' ausente em {pred_csv}."}), 400
+#             label_for_plot = df_pred[label_name].apply(_norm_label)
+
+#             # ------------------------------------------------------------------
+#             # targets.csv + label_map.csv
+#             # ------------------------------------------------------------------
+#             le = LabelEncoder()
+#             encoded = le.fit_transform(label_for_plot.values)
+
+#             # coluna 'id' para ambos os CSVs
+#             if id_field_name:
+#                 if id_field_name not in df_pred.columns:
+#                     return jsonify({
+#                         "message": f"Coluna de ID '{id_field_name}' não encontrada em {pred_csv}."
+#                     }), 400
+#                 id_values = df_pred[id_field_name].values
+#             elif 'id' in df_pred.columns:
+#                 id_values = df_pred['id'].values
+#             else:
+#                 # fallback compatível com versões anteriores
+#                 id_values = df_pred['pos'].values
+
+#             # targets.csv: pos, id, label (inteiro)
+#             pd.DataFrame({
+#                 'pos':   df_pred['pos'].values,
+#                 'id':    id_values,
+#                 'label': encoded
+#             }).to_csv(
+#                 os.path.join(out_dir, 'targets.csv'), index=False
+#             )
+
+#             # label_map.csv
+#             pd.DataFrame(
+#                 {'label_text': le.classes_, 'label_integer': range(len(le.classes_))}
+#             ).to_csv(
+#                 os.path.join(out_dir, 'label_map.csv'), index=False
+#             )
+
+#             # targets_x_bmu.csv: pos, id, label (TEXTO), bmu_x, bmu_y
+#             mapping_csv = os.path.join(out_dir, 'targets_x_bmu.csv')
+#             df_txb = pd.DataFrame({
+#                 'pos':   df_pred['pos'].values,
+#                 'id':    id_values,
+#                 'label': label_for_plot.values,
+#                 'bmu_x': df_pred['bmu_x'].values,
+#                 'bmu_y': df_pred['bmu_y'].values
+#             })
+#             df_txb.to_csv(mapping_csv, index=False)
+
+#             # Contagens por neurônio (chave = (linha, coluna) = (bmu_x, bmu_y))
+#             labels_map = defaultdict(lambda: defaultdict(int))
+#             for bx, by, lbl in zip(df_pred['bmu_x'], df_pred['bmu_y'], label_for_plot.values):
+#                 labels_map[(int(bx), int(by))][str(lbl)] += 1
+
+#             unique_labels = sorted([str(x) for x in le.classes_])
+#             cmap = plt.cm.get_cmap('tab20', len(unique_labels) if len(unique_labels) > 0 else 1)
+#             label_to_color = {lab: cmap(i) for i, lab in enumerate(unique_labels)}
+
+#             # Dimensões da grade = dimensões da SOM
+#             rows, cols = n_rows, n_cols
+
+#         # ====================================================
+#         # MODO 1: csv_file enviado (treina SOM e calcula BMUs)
+#         # ====================================================
+#         else:
+#             if 'csv_file' not in request.files:
+#                 return jsonify({"message": "Parâmetro 'csv_file' ausente."}), 400
+#             csv_file = request.files['csv_file']
+#             df = pd.read_csv(csv_file)
+
+#             # Rótulo de origem: SEMPRE df[label_name]
+#             if label_name not in df.columns:
+#                 return jsonify({"message": f"Coluna de rótulo '{label_name}' não existe no CSV fornecido."}), 400
+#             label_for_plot = df[label_name].apply(_norm_label)
+
+#             prefixes = [c.strip().lower() for c in data_columns_str.split(',') if c.strip()]
+#             selected = [c for c in df.columns if any(c.lower().startswith(p) for p in prefixes)]
+#             if not selected:
+#                 return jsonify({"message": "Nenhuma coluna de dados encontrada."}), 400
+
+#             # dimensões informadas (R x C)
+#             rows_ref, cols_ref = map(int, dimensions.lower().split('x'))
+
+#             # treina SOM do zero
+#             from minisom import MiniSom
+#             som = MiniSom(
+#                 x=rows_ref, y=cols_ref, input_len=len(selected),
+#                 sigma=sigma, learning_rate=learning_rate,
+#                 neighborhood_function=neighborhood_function, topology=topology, random_seed=0
+#             )
+#             data_values = df[selected].values
+#             som.random_weights_init(data_values)
+#             som.train_random(data_values, len(df))
+
+#             # salva pesos
+#             weights_path = os.path.join(
+#                 out_dir,
+#                 f"{project_name}_weights__Dim={dimensions}_Sigma={sigma}_LearningRate={learning_rate}_"
+#                 f"NeighborhoodFunction={neighborhood_function}_Topology={topology}.npy"
+#             )
+#             np.save(weights_path, som.get_weights())
+
+#             # calcula BMUs (winner retorna (row, col) = (linha, coluna))
+#             bmu_results = []
+#             for i, vec in enumerate(data_values):
+#                 bx, by = som.winner(vec)  # bx = linha (y), by = coluna (x)
+#                 bmu_results.append((i, label_for_plot.iloc[i], bx, by))
+
+#             # label encoder para o rótulo – mesma convenção
+#             le = LabelEncoder()
+#             encoded = le.fit_transform([str(r[1]) for r in bmu_results])
+
+#             # coluna 'id' (mesma lógica de antes, reaproveitada para ambos os CSVs)
+#             if id_field_name:
+#                 if id_field_name not in df.columns:
+#                     return jsonify({
+#                         "message": f"Coluna de ID '{id_field_name}' não existe no CSV fornecido."
+#                     }), 400
+#                 id_values = df[id_field_name].values
+#             elif 'id' in df.columns:
+#                 id_values = df['id'].values
+#             else:
+#                 # fallback compatível com versões anteriores
+#                 id_values = np.arange(len(df))
+
+#             # targets.csv: pos, id, label (inteiro)
+#             pd.DataFrame({
+#                 'pos':   [r[0] for r in bmu_results],
+#                 'id':    id_values,
+#                 'label': encoded
+#             }).to_csv(
+#                 os.path.join(out_dir, 'targets.csv'), index=False
+#             )
+
+#             # label_map.csv
+#             pd.DataFrame(
+#                 {'label_text': le.classes_, 'label_integer': range(len(le.classes_))}
+#             ).to_csv(
+#                 os.path.join(out_dir, 'label_map.csv'), index=False
+#             )
+
+#             # targets_x_bmu.csv: pos, id, label (texto), bmu_x, bmu_y
+#             mapping_csv = os.path.join(out_dir, 'targets_x_bmu.csv')
+#             df_bmu = pd.DataFrame({
+#                 'pos':   [r[0] for r in bmu_results],
+#                 'id':    id_values,
+#                 'label': [r[1] for r in bmu_results],
+#                 'bmu_x': [r[2] for r in bmu_results],
+#                 'bmu_y': [r[3] for r in bmu_results],
+#             })
+#             df_bmu.to_csv(mapping_csv, index=False)
+
+#             # Contagens por neurônio (chave = (linha, coluna) = (bx, by))
+#             labels_map = defaultdict(lambda: defaultdict(int))
+#             for _, lbl, bx, by in bmu_results:
+#                 labels_map[(int(bx), int(by))][str(lbl)] += 1
+
+#             unique_labels = sorted([str(x) for x in le.classes_])
+#             cmap = plt.cm.get_cmap('tab20', len(unique_labels))
+#             label_to_color = {lab: cmap(i) for i, lab in enumerate(unique_labels)}
+
+#             # Dimensões da grade = dimensões informadas
+#             rows, cols = rows_ref, cols_ref
+
+#         # ----------------------------------------------------
+#         # Grade usada para desenho
+#         # ----------------------------------------------------
+#         rows_plot, cols_plot = rows, cols
+
+#         # ----------------------------------------------------
+#         # Desenho (hex grid)
+#         # ----------------------------------------------------
+#         y_off = math.sqrt(3) / 2.0
+#         radius_hex = 0.5
+#         d_bot = -0.22
+
+#         # -- (A) Pizza por neurônio
+#         fig = plt.figure(
+#             figsize=(max(10, cols_plot * 0.4), max(10, rows_plot * 0.4)),
+#             dpi=100
+#         )
+#         ax = fig.add_subplot(1, 1, 1)
+#         fig.text(0.01, 0.98, f"Project {project_name} - Neuron Pie Grid",
+#                  ha='left', va='top', fontsize=14, weight='bold')
+
+#         patches = [Patch(color=label_to_color[lab], label=lab) for lab in unique_labels]
+#         fig.legend(handles=patches, loc='upper right', bbox_to_anchor=(1.12, 0.98),
+#                    fancybox=True, shadow=True, ncol=1)
+#         plt.subplots_adjust(top=0.95, right=0.78)
+
+#         # y = linha (bx), x = coluna (by)
+#         for bx in range(rows_plot):
+#             for by in range(cols_plot):
+#                 cnts = labels_map.get((bx, by), {})
+#                 x_off = 0.5 if (bx % 2) else 0.0
+#                 cx, cy = (by + x_off, (rows_plot - 1 - bx) * y_off)
+
+#                 if not cnts:
+#                     ax.add_patch(RegularPolygon(xy=(cx, cy), numVertices=6, radius=radius_hex,
+#                                                 orientation=math.radians(30),
+#                                                 facecolor='white', edgecolor='black', linewidth=0.8))
+#                     if with_indexes:
+#                         rr = f"{(bx+1):02d}"; cc = f"{(by+1):02d}"
+#                         ax.text(cx, cy + d_bot, f"{rr},{cc}", ha='center', va='center', fontsize=5)
+#                     continue
+
+#                 labs   = [l for l in unique_labels if cnts.get(l, 0) > 0]
+#                 fracs  = [cnts[l] for l in labs]
+#                 cols_c = [label_to_color[l] for l in labs]
+
+#                 hex_border = RegularPolygon((cx, cy), numVertices=6, radius=radius_hex,
+#                                             orientation=math.radians(30),
+#                                             facecolor='none', edgecolor='white', linewidth=0.3,
+#                                             transform=ax.transData)
+
+#                 wedges, _ = ax.pie(fracs, startangle=90, radius=radius_hex*0.98,
+#                                    colors=cols_c, center=(cx, cy),
+#                                    wedgeprops={'linewidth': 0})
+#                 for w in wedges:
+#                     w.set_clip_path(hex_border)
+
+#                 ax.add_patch(RegularPolygon((cx, cy), numVertices=6, radius=radius_hex,
+#                                             orientation=math.radians(30),
+#                                             facecolor='none', edgecolor='black', linewidth=0.8))
+#                 if with_indexes:
+#                     rr = f"{(bx+1):02d}"; cc = f"{(by+1):02d}"
+#                     ax.text(cx, cy + d_bot, f"{rr},{cc}", ha='center', va='center', fontsize=5)
+
+#         ax.set_xlim(-0.5, cols_plot)
+#         ax.set_ylim(-0.5, rows_plot * y_off + y_off / 2)
+#         ax.set_aspect('equal'); ax.axis('off')
+#         pie_png = os.path.join(out_dir, 'targets_x_bmu.png')
+#         _save_artwork(fig, pie_png)
+#         plt.close(fig)
+
+#         # -- (B) Rótulo majoritário por neurônio
+#         fig2 = plt.figure(
+#             figsize=(max(10, cols_plot * 0.4), max(10, rows_plot * 0.4)),
+#             dpi=100
+#         )
+#         ax2 = fig2.add_subplot(1, 1, 1)
+#         fig2.text(0.01, 0.98, f"Project {project_name} - Majority Label",
+#                   ha='left', va='top', fontsize=14, weight='bold')
+
+#         patches_major = [Patch(facecolor=label_to_color[l], edgecolor='white', label=l) for l in unique_labels]
+#         unused_patch  = Patch(facecolor='white', edgecolor='black', linewidth=1.2, label='Unused')
+#         fig2.legend([unused_patch] + patches_major, ['Unused'] + unique_labels,
+#                     loc='upper left', bbox_to_anchor=(1.05, 1.02),
+#                     fancybox=True, shadow=True)
+#         plt.subplots_adjust(top=0.93, right=0.82)
+
+#         for bx in range(rows_plot):
+#             for by in range(cols_plot):
+#                 cnts = labels_map.get((bx, by), {})
+#                 x_off = 0.5 if (bx % 2) else 0.0
+#                 cx, cy = (by + x_off, (rows_plot - 1 - bx) * y_off)
+
+#                 if not cnts:
+#                     ax2.add_patch(RegularPolygon(xy=(cx, cy), numVertices=6, radius=radius_hex,
+#                                                  orientation=math.radians(30),
+#                                                  facecolor='white', edgecolor='black', linewidth=0.8))
+#                     if with_indexes:
+#                         rr = f"{(bx+1):02d}"; cc = f"{(by+1):02d}"
+#                         ax2.text(cx, cy + d_bot, f"{rr},{cc}", ha='center', va='center', fontsize=5)
+#                     continue
+
+#                 maxc = max(cnts.values())
+#                 winners = [l for l, c in cnts.items() if c == maxc]
+#                 chosen = random.choice(winners)
+#                 ax2.add_patch(RegularPolygon(xy=(cx, cy), numVertices=6, radius=radius_hex,
+#                                              orientation=math.radians(30),
+#                                              facecolor=label_to_color[chosen],
+#                                              edgecolor='white', linewidth=0.2))
+#                 if with_indexes:
+#                     rr = f"{(bx+1):02d}"; cc = f"{(by+1):02d}"
+#                     ax2.text(cx, cy + d_bot, f"{rr},{cc}", ha='center', va='center', fontsize=5)
+
+#         ax2.set_xlim(-0.5, cols_plot)
+#         ax2.set_ylim(-0.5, rows_plot * y_off + y_off / 2)
+#         ax2.set_aspect('equal'); ax2.axis('off')
+#         maj_png = os.path.join(out_dir, 'targets_x_bmu__majority_label.png')
+#         _save_artwork(fig2, maj_png)
+#         plt.close(fig2)
+
+#         return jsonify({
+#             "message":        "Mapeamento concluído com sucesso.",
+#             "mapping_csv":    mapping_csv,
+#             "pie_chart":      pie_png,
+#             "majority_chart": maj_png
+#         }), 200
+
+#     except Exception as e:
+#         return jsonify({"message": f"Erro inesperado: {e}"}), 500
+
 
 
 
@@ -10544,7 +11485,8 @@ def step_02__clusterize():
 #   -F "prior_threshold=0.6" \
 #   -F "posterior_threshold=0.6" \
 #   -F "column_key=id" \
-#   -F "category_column=label"
+#   -F "category_column=label" \
+#   -F "files=png"
 # ############################################################################################################
 # curl -X POST http://127.0.0.1:5000/step_03__build_the_exclusion_map_and_exclude \
 #   -F "project_name=lorena.60x60" \
@@ -10552,7 +11494,8 @@ def step_02__clusterize():
 #   -F "prior_threshold=0.6" \
 #   -F "posterior_threshold=0.6" \
 #   -F "column_key=id" \
-#   -F "category_column=label"
+#   -F "category_column=label" \
+#   -F "files=png"
 # ############################################################################################################
 # curl -X POST http://127.0.0.1:5000/step_03__build_the_exclusion_map_and_exclude \
 #   -F "project_name=lorena.60x60" \
@@ -10560,7 +11503,8 @@ def step_02__clusterize():
 #   -F "prior_threshold=0.6" \
 #   -F "posterior_threshold=0.6" \
 #   -F "column_key=id" \
-#   -F "category_column=label"
+#   -F "category_column=label" \
+#   -F "files=png"
 # ############################################################################################################
 # curl -X POST http://127.0.0.1:5000/step_03__build_the_exclusion_map_and_exclude \
 #   -F "project_name=lorena.60x60" \
@@ -10568,7 +11512,8 @@ def step_02__clusterize():
 #   -F "prior_threshold=0.6" \
 #   -F "posterior_threshold=0.6" \
 #   -F "column_key=id" \
-#   -F "category_column=label"
+#   -F "category_column=label" \
+#   -F "files=png"
 # ############################################################################################################
 # curl -X POST http://127.0.0.1:5000/step_03__build_the_exclusion_map_and_exclude \
 #   -F "project_name=lorena.60x60" \
@@ -10576,7 +11521,8 @@ def step_02__clusterize():
 #   -F "prior_threshold=0.6" \
 #   -F "posterior_threshold=0.6" \
 #   -F "column_key=id" \
-#   -F "category_column=label"
+#   -F "category_column=label" \
+#   -F "files=png"
 # ############################################################################################################
 # curl -X POST http://127.0.0.1:5000/step_03__build_the_exclusion_map_and_exclude \
 #   -F "project_name=lorena.60x60" \
@@ -10584,7 +11530,8 @@ def step_02__clusterize():
 #   -F "prior_threshold=0.6" \
 #   -F "posterior_threshold=0.6" \
 #   -F "column_key=id" \
-#   -F "category_column=label"
+#   -F "category_column=label" \
+#   -F "files=png"
 # ############################################################################################################
 # curl -X POST http://127.0.0.1:5000/step_03__build_the_exclusion_map_and_exclude \
 #   -F "project_name=lorena.60x60" \
@@ -10592,7 +11539,8 @@ def step_02__clusterize():
 #   -F "prior_threshold=0.6" \
 #   -F "posterior_threshold=0.6" \
 #   -F "column_key=id" \
-#   -F "category_column=label"
+#   -F "category_column=label" \
+#   -F "files=png"
 # ############################################################################################################
 # curl -X POST http://127.0.0.1:5000/step_03__build_the_exclusion_map_and_exclude \
 #   -F "project_name=lorena.60x60" \
@@ -10600,7 +11548,8 @@ def step_02__clusterize():
 #   -F "prior_threshold=0.6" \
 #   -F "posterior_threshold=0.6" \
 #   -F "column_key=id" \
-#   -F "category_column=label"
+#   -F "category_column=label" \
+#   -F "files=png"
 # ############################################################################################################
 # curl -X POST http://127.0.0.1:5000/step_03__build_the_exclusion_map_and_exclude \
 #   -F "project_name=lorena.60x60" \
@@ -10608,7 +11557,8 @@ def step_02__clusterize():
 #   -F "prior_threshold=0.6" \
 #   -F "posterior_threshold=0.6" \
 #   -F "column_key=id" \
-#   -F "category_column=label"
+#   -F "category_column=label" \
+#   -F "files=png"
 # ############################################################################################################
 # curl -X POST http://127.0.0.1:5000/step_03__build_the_exclusion_map_and_exclude \
 #   -F "project_name=lorena.60x60" \
@@ -10616,7 +11566,8 @@ def step_02__clusterize():
 #   -F "prior_threshold=0.6" \
 #   -F "posterior_threshold=0.6" \
 #   -F "column_key=id" \
-#   -F "category_column=label"
+#   -F "category_column=label" \
+#   -F "files=png"
 # ############################################################################################################
 # curl -X POST http://127.0.0.1:5000/step_03__build_the_exclusion_map_and_exclude \
 #   -F "project_name=lorena.60x60" \
@@ -10624,7 +11575,8 @@ def step_02__clusterize():
 #   -F "prior_threshold=0.6" \
 #   -F "posterior_threshold=0.6" \
 #   -F "column_key=id" \
-#   -F "category_column=label"
+#   -F "category_column=label" \
+#   -F "files=png"
 # ############################################################################################################
 # curl -X POST http://127.0.0.1:5000/step_03__build_the_exclusion_map_and_exclude \
 #   -F "project_name=lorena.60x60" \
@@ -10632,7 +11584,8 @@ def step_02__clusterize():
 #   -F "prior_threshold=0.6" \
 #   -F "posterior_threshold=0.6" \
 #   -F "column_key=id" \
-#   -F "category_column=label"
+#   -F "category_column=label" \
+#   -F "files=png"
 # ############################################################################################################
 
 
@@ -12421,6 +13374,12 @@ def step_03__build_the_exclusion_map_and_exclude():
       - bounded_areas_legend_width (opcional): largura, em pixels (int > 0), das linhas
                                                desenhadas na legenda "BOUNDED AREAS"
 
+      - files (opcional): formatos de figuras gerados pela subrotina
+                           save_png_svg_pdf_eps. Ex.: "png", "png,svg",
+                           "png,svg,eps,pdf". Se omitido, o parâmetro também
+                           é omitido nas chamadas internas, preservando o
+                           comportamento atual do pipeline.
+
     Obs.: o cluster é lido de:
       ./projs/<project_name>/12_method/step_02/cluster_<iteration_number>/selected_cluster.csv
     """
@@ -12476,6 +13435,18 @@ def step_03__build_the_exclusion_map_and_exclude():
         show_krf_raw = request.form.get('show_krf', 'true')
         show_krf = str(show_krf_raw).strip().lower() in ('true', '1', 'yes', 'y')                        
         ##################################################
+
+        # ----------------- files -----------------
+        # Controla quais formatos serão gerados por save_png_svg_pdf_eps.
+        # Se omitido, também será omitido na chamada interna, preservando
+        # a compatibilidade com todas as invocações atuais do pipeline.
+        files_raw = request.form.get('files', None)
+
+        def _save_artwork(fig_obj, png_output_path):
+            if files_raw is None or str(files_raw).strip() == '':
+                save_png_svg_pdf_eps(fig_obj, png_output_path)
+            else:
+                save_png_svg_pdf_eps(fig_obj, png_output_path, files=files_raw)
         
         
         if with_indexes_raw is not None:
@@ -13279,7 +14250,7 @@ def step_03__build_the_exclusion_map_and_exclude():
             # fig.savefig(majority_incidence_png, bbox_inches='tight', dpi=120)
             # fig.savefig(majority_incidence_png, bbox_inches='tight', dpi=ARTWORK_DPI)
             # fig.savefig(majority_incidence_png, bbox_inches='tight', dpi=ARTWORK_DPI, pil_kwargs={"dpi": (ARTWORK_DPI, ARTWORK_DPI)})
-            save_png_svg_pdf_eps(fig, majority_incidence_png)
+            _save_artwork(fig, majority_incidence_png)
 
             # ==================================================
             # AGORA, ADICIONA STATUS + LEGENDA DE STATUS
@@ -13398,7 +14369,7 @@ def step_03__build_the_exclusion_map_and_exclude():
             )
             # fig.savefig(kept_removed_flagged_png, bbox_inches='tight', dpi=120)
             # fig.savefig(kept_removed_flagged_png, bbox_inches='tight', dpi=ARTWORK_DPI, pil_kwargs={"dpi": (ARTWORK_DPI, ARTWORK_DPI)})
-            save_png_svg_pdf_eps(fig, kept_removed_flagged_png)
+            _save_artwork(fig, kept_removed_flagged_png)
             
             
             plt.close(fig)
@@ -13585,7 +14556,7 @@ def step_03__build_the_exclusion_map_and_exclude():
                     )
                     # fig_p.savefig(bmus_x_neurons_png, bbox_inches='tight', dpi=120)
                     # fig_p.savefig(bmus_x_neurons_png, bbox_inches='tight', dpi=ARTWORK_DPI, pil_kwargs={"dpi": (ARTWORK_DPI, ARTWORK_DPI)})
-                    save_png_svg_pdf_eps(fig_p, bmus_x_neurons_png)
+                    _save_artwork(fig_p, bmus_x_neurons_png)
 
                     # -------------------------------------------
                     # AGORA ADICIONA LEGENDA DE STATUS E SÍMBOLOS
@@ -13723,7 +14694,7 @@ def step_03__build_the_exclusion_map_and_exclude():
                     )
                     # fig_p.savefig(kept_removed_flagged_targets_png, bbox_inches='tight', dpi=120)
                     # fig_p.savefig(kept_removed_flagged_targets_png, bbox_inches='tight', dpi=ARTWORK_DPI, pil_kwargs={"dpi": (ARTWORK_DPI, ARTWORK_DPI)})                    
-                    save_png_svg_pdf_eps(fig_p, kept_removed_flagged_targets_png)
+                    _save_artwork(fig_p, kept_removed_flagged_targets_png)
                     
                     plt.close(fig_p)
             except Exception as e_pizza:
@@ -14034,7 +15005,7 @@ def step_03__build_the_exclusion_map_and_exclude():
             plt.tight_layout()
             # fig_s.savefig(png_sum, dpi=100, bbox_inches='tight')
             # fig_s.savefig(png_sum, dpi=ARTWORK_DPI, bbox_inches='tight', pil_kwargs={"dpi": (ARTWORK_DPI, ARTWORK_DPI)})
-            save_png_svg_pdf_eps(fig_s, png_sum)
+            _save_artwork(fig_s, png_sum)
             plt.close(fig_s)
 
             before_counts = df_data[cat_col].value_counts()
@@ -14067,7 +15038,7 @@ def step_03__build_the_exclusion_map_and_exclude():
             plt.tight_layout()
             # fig_r.savefig(rep_path, dpi=100, bbox_inches='tight')
             # fig_r.savefig(rep_path, dpi=ARTWORK_DPI, bbox_inches='tight', pil_kwargs={"dpi": (ARTWORK_DPI, ARTWORK_DPI)})
-            save_png_svg_pdf_eps(fig_r, rep_path)
+            _save_artwork(fig_r, rep_path)
             plt.close(fig_r)
 
         except Exception as e_restored:
@@ -14088,6 +15059,1723 @@ def step_03__build_the_exclusion_map_and_exclude():
         err={"message":f"Erro interno: {e}"}
         return Response(json.dumps(err,indent=2,ensure_ascii=False),
                         mimetype='application/json'),500
+
+
+
+
+# @app.route('/step_03__build_the_exclusion_map_and_exclude', methods=['POST'])
+# def step_03__build_the_exclusion_map_and_exclude():
+#     """
+#     3º passo: monta o mapa de exclusões conforme inferência bayesiana
+#     e gera:
+#       - exclusion_map.csv
+#       - data_<it>.csv
+#       - kept_removed_flagged.png
+#       - kept_removed_flagged.pdf
+#       - kept_removed_flagged.csv
+
+#     (Restaurado, sem alterar a lógica já existente:)
+#       - data_<it-1>_to_<it>_general_summary.csv
+#       - data_<it-1>_to_<it>_categorized_summary.csv
+#       - data_<it-1>_to_<it>_categorized_summary.png
+#       - data_<it-1>_to_<it>_categorized_representativeness.png
+
+#     Parâmetros extras opcionais (apenas aspecto visual dos mapas):
+#       - with_indexes (bool)         : se 'true', escreve (RR,CC) dentro dos neurônios
+#       - indexes_font (int > 0)      : obrigatório se with_indexes=true
+#       - cluster_color (str, hex)    : cor do contorno do cluster (ex: "#ff0000")
+#       - cluster_width (float > 0)   : espessura da linha do contorno
+
+#       - focal_neuron_numbers   (opcional): string com inteiros separados por vírgula,
+#                                            em quantidade PAR, representando pares (RR,CC)
+#                                            de neurônios focais (1-based)
+#       - focal_neuron_color     (opcional): cor da borda dos neurônios focais, ex: "#ffff00"
+#       - focal_neuron_width     (opcional): espessura da borda dos neurônios focais (float)
+
+#       - neighboring_neurons_numbers (opcional): string com inteiros separados por vírgula,
+#                                                em quantidade PAR, representando pares (RR,CC)
+#                                                de neurônios vizinhos (1-based)
+#       - neighboring_neurons_color   (opcional): cor da borda desses neurônios
+#       - neighboring_neurons_width   (opcional): espessura da borda desses neurônios (float)
+
+#       - discarded_neighbor_numbers (opcional): string com inteiros separados por vírgula,
+#                                                em quantidade PAR, representando pares (RR,CC)
+#                                                de neurônios descartados (1-based)
+#       - discarded_neighbor_color   (opcional): cor da borda desses neurônios descartados
+#       - discarded_neighbor_width   (opcional): espessura da borda desses neurônios descartados (float)
+
+#       - bounded_areas_legend_font  (opcional): tamanho da fonte (int > 0) usado em todos
+#                                                os rótulos da legenda "BOUNDED AREAS"
+#       - bounded_areas_legend_width (opcional): largura, em pixels (int > 0), das linhas
+#                                                desenhadas na legenda "BOUNDED AREAS"
+
+#     Obs.: o cluster é lido de:
+#       ./projs/<project_name>/12_method/step_02/cluster_<iteration_number>/selected_cluster.csv
+#     """
+#     try:
+#         import os, pickle, json, math, random
+#         import numpy as np
+#         import pandas as pd
+#         import matplotlib
+#         matplotlib.use('Agg')
+#         import matplotlib.pyplot as plt
+#         from flask import request, Response
+#         from datetime import datetime
+#         from matplotlib.patches import RegularPolygon, Polygon, Patch
+#         from matplotlib.lines import Line2D
+#         from matplotlib.legend_handler import HandlerTuple
+#         from matplotlib.backends.backend_pdf import PdfPages
+#         from matplotlib.colors import to_hex, to_rgba  # garante import p/ colors.csv
+
+#         # ==================== PARÂMETROS ====================
+#         for p in ('project_name','iteration_number','prior_threshold',
+#                   'posterior_threshold','column_key','category_column'):
+#             if p not in request.form:
+#                 return Response(json.dumps({"message": f"Parâmetro '{p}' ausente."},
+#                                            indent=2, ensure_ascii=False),
+#                                 mimetype='application/json'), 400
+
+#         proj      = request.form['project_name']
+#         it        = int(request.form['iteration_number'])
+#         tau_c     = float(request.form['prior_threshold'])
+#         tau_p     = float(request.form['posterior_threshold'])
+#         key       = request.form['column_key']
+#         cat_col   = request.form['category_column']
+#         prefix    = f"{proj}.It{it}"
+
+#         base     = os.path.join('.', 'projs', proj, '12_method')
+#         data_dir = os.path.join(base, 'data')
+
+#         # ----------------- with_indexes / indexes_font -----------------
+        
+#         ############### SUBSTITUIR ISSO... ###############
+#         # with_indexes_raw = request.form.get('with_indexes', None)
+#         # with_indexes = False
+#         # indexes_font = None
+#         ################## POR ISSO... ###################
+#         with_indexes_raw = request.form.get('with_indexes', None)
+#         with_indexes = False
+#         indexes_font = None
+        
+#         # ----------------- show_krf -----------------
+#         # Controla a exibição das marcações Kept/Removed/Flagged
+#         # e da legenda associada nos mapas gerados.
+#         # Padrão: true, para preservar o comportamento atual.
+#         show_krf_raw = request.form.get('show_krf', 'true')
+#         show_krf = str(show_krf_raw).strip().lower() in ('true', '1', 'yes', 'y')                        
+#         ##################################################
+        
+        
+#         if with_indexes_raw is not None:
+#             with_indexes = str(with_indexes_raw).strip().lower() in ('true', '1', 'yes', 'y')
+#             if with_indexes:
+#                 if 'indexes_font' not in request.form:
+#                     err = {"message": "Parâmetro 'indexes_font' é obrigatório quando with_indexes=true."}
+#                     return Response(json.dumps(err, indent=2, ensure_ascii=False),
+#                                     mimetype='application/json'), 400
+#                 try:
+#                     indexes_font = int(str(request.form['indexes_font']).strip())
+#                     if indexes_font <= 0:
+#                         raise ValueError("indexes_font deve ser > 0")
+#                 except Exception as e_font:
+#                     err = {"message": f"Valor inválido para 'indexes_font': {e_font}"}
+#                     return Response(json.dumps(err, indent=2, ensure_ascii=False),
+#                                     mimetype='application/json'), 400
+
+#         # ----------------- cluster_color / cluster_width -----------------
+#         cluster_color_raw = request.form.get('cluster_color', None)
+#         cluster_width_raw = request.form.get('cluster_width', None)
+#         highlight_cluster = False
+#         cluster_color = None
+#         cluster_width = None
+#         cluster_cells = set()  # conjunto de neurônios (linha,coluna) 0-based
+
+#         any_cluster_param = (
+#             cluster_color_raw is not None and str(cluster_color_raw).strip() != ''
+#         ) or (
+#             cluster_width_raw is not None and str(cluster_width_raw).strip() != ''
+#         )
+
+#         if any_cluster_param:
+#             if not cluster_color_raw or not str(cluster_color_raw).strip():
+#                 err = {"message": "Se 'cluster_width' for informado, 'cluster_color' também deve ser informado."}
+#                 return Response(json.dumps(err, indent=2, ensure_ascii=False),
+#                                 mimetype='application/json'), 400
+#             if not cluster_width_raw or not str(cluster_width_raw).strip():
+#                 err = {"message": "Se 'cluster_color' for informado, 'cluster_width' também deve ser informado."}
+#                 return Response(json.dumps(err, indent=2, ensure_ascii=False),
+#                                 mimetype='application/json'), 400
+#             try:
+#                 cluster_width = float(str(cluster_width_raw).strip())
+#                 if cluster_width <= 0:
+#                     raise ValueError("cluster_width deve ser > 0")
+#                 cluster_color = str(cluster_color_raw).strip()
+#                 highlight_cluster = True
+#             except Exception as e_cw:
+#                 err = {"message": f"Parâmetros inválidos para destaque de cluster: {e_cw}"}
+#                 return Response(json.dumps(err, indent=2, ensure_ascii=False),
+#                                 mimetype='application/json'), 400
+
+#         # conjuntos de neurônios focais / vizinhos (preenchidos depois de conhecer n_rows,n_cols)
+#         focal_coords = []
+#         focal_color  = None
+#         focal_width  = None
+
+#         neighboring_coords = []
+#         neighboring_color  = None
+#         neighboring_width  = None
+
+#         # NOVO: conjuntos de neurônios descartados (mesma lógica dos focais)
+#         discarded_coords = []
+#         discarded_color  = None
+#         discarded_width  = None
+
+#         # ----------------- parâmetros da legenda BOUNDED AREAS -----------------
+#         bounded_font_raw  = request.form.get('bounded_areas_legend_font', None)
+#         bounded_width_raw = request.form.get('bounded_areas_legend_width', None)
+
+#         bounded_areas_legend_font  = None
+#         bounded_areas_legend_width = None   # em pixels
+
+#         if bounded_font_raw is not None and str(bounded_font_raw).strip() != '':
+#             try:
+#                 bounded_areas_legend_font = int(str(bounded_font_raw).strip())
+#                 if bounded_areas_legend_font <= 0:
+#                     raise ValueError("bounded_areas_legend_font deve ser > 0")
+#             except Exception as e_bf:
+#                 err = {"message": f"Valor inválido para 'bounded_areas_legend_font': {e_bf}"}
+#                 return Response(json.dumps(err, indent=2, ensure_ascii=False),
+#                                 mimetype='application/json'), 400
+
+#         if bounded_width_raw is not None and str(bounded_width_raw).strip() != '':
+#             try:
+#                 bounded_areas_legend_width = float(str(bounded_width_raw).strip())
+#                 if bounded_areas_legend_width <= 0:
+#                     raise ValueError("bounded_areas_legend_width deve ser > 0")
+#             except Exception as e_bw:
+#                 err = {"message": f"Valor inválido para 'bounded_areas_legend_width': {e_bw}"}
+#                 return Response(json.dumps(err, indent=2, ensure_ascii=False),
+#                                 mimetype='application/json'), 400
+
+#         # ==================== DADOS ====================
+#         prev_csv = os.path.join(data_dir, f'data_{it-1}.csv')
+#         df_data  = pd.read_csv(prev_csv)
+
+#         step02 = os.path.join(base,'step_02',f'cluster_{it}')
+#         df_pred = pd.read_csv(os.path.join(step02,'predicted_labels.csv'))
+#         cluster_obj = pickle.load(open(os.path.join(step02,'cluster.pkl'),'rb'))
+
+#         som = pickle.load(open(os.path.join(base,'step_01',f'som_{it}','som.pkl'),'rb'))
+#         n_rows,n_cols,_ = som.get_weights().shape
+
+#         if hasattr(cluster_obj, 'labels_'):
+#             cmap = cluster_obj.labels_.reshape(n_rows,n_cols)
+#         else:
+#             cmap = np.array(cluster_obj).reshape(n_rows,n_cols)
+
+#         # ---------- se for desenhar cluster, carregar selected_cluster.csv ----------
+#         if highlight_cluster:
+#             sel_path = os.path.join(step02, 'selected_cluster.csv')
+#             if os.path.exists(sel_path):
+#                 try:
+#                     df_sel = pd.read_csv(sel_path)
+#                     if not {'RR','CC'}.issubset(df_sel.columns):
+#                         print("[Aviso] selected_cluster.csv não possui colunas RR e CC. Ignorando destaque.")
+#                         highlight_cluster = False
+#                     else:
+#                         for rr, cc in zip(df_sel['RR'], df_sel['CC']):
+#                             try:
+#                                 r0 = int(rr) - 1
+#                                 c0 = int(cc) - 1
+#                                 if 0 <= r0 < n_rows and 0 <= c0 < n_cols:
+#                                     cluster_cells.add((r0, c0))
+#                             except Exception:
+#                                 continue
+#                         if not cluster_cells:
+#                             print("[Aviso] selected_cluster.csv vazio ou inválido. Ignorando destaque.")
+#                             highlight_cluster = False
+#                 except Exception as e_sel:
+#                     print(f"[Aviso] Falha ao ler selected_cluster.csv ({e_sel}). Ignorando destaque.")
+#                     highlight_cluster = False
+#             else:
+#                 print("[Aviso] selected_cluster.csv não encontrado. Ignorando destaque.")
+#                 highlight_cluster = False
+
+#         # ---------- parâmetros dos neurônios focais ----------
+#         focal_numbers_raw = request.form.get('focal_neuron_numbers', None)
+#         focal_color_raw   = request.form.get('focal_neuron_color', None)
+#         focal_width_raw   = request.form.get('focal_neuron_width', None)
+
+#         focal_params = [focal_numbers_raw, focal_color_raw, focal_width_raw]
+#         focal_count = sum(v is not None and str(v).strip() != '' for v in focal_params)
+
+#         if focal_count not in (0, 3):
+#             print("[Aviso] Parâmetros de neurônios focais "
+#                   "('focal_neuron_numbers', 'focal_neuron_color', 'focal_neuron_width') "
+#                   "devem ser usados juntos. Ignorando neurônios focais.")
+#         elif focal_count == 3:
+#             try:
+#                 nums = [s.strip() for s in str(focal_numbers_raw).split(',') if s.strip() != '']
+#                 if len(nums) == 0 or len(nums) % 2 != 0:
+#                     raise ValueError("focal_neuron_numbers deve conter quantidade PAR de inteiros >= 2.")
+
+#                 ints = [int(v) for v in nums]
+#                 pairs = []
+#                 for i_pair in range(0, len(ints), 2):
+#                     rr = ints[i_pair]
+#                     cc = ints[i_pair+1]
+#                     if not (1 <= rr <= n_rows and 1 <= cc <= n_cols):
+#                         raise ValueError(f"Par (RR,CC)=({rr},{cc}) fora da grade {n_rows}x{n_cols}.")
+#                     pairs.append((rr-1, cc-1))  # zero-based
+#                 focal_coords = pairs
+#                 focal_color  = str(focal_color_raw).strip()
+#                 focal_width  = float(str(focal_width_raw).strip())
+#             except Exception as e_focal:
+#                 print(f"[Aviso] Falha ao interpretar parâmetros de neurônios focais: {e_focal}. "
+#                       f"Ignorando neurônios focais.")
+#                 focal_coords = []
+#                 focal_color  = None
+#                 focal_width  = None
+
+#         # ---------- parâmetros dos neurônios vizinhos ----------
+#         neigh_numbers_raw = request.form.get('neighboring_neurons_numbers', None)
+#         neigh_color_raw   = request.form.get('neighboring_neurons_color', None)
+#         neigh_width_raw   = request.form.get('neighboring_neurons_width', None)
+
+#         neigh_params = [neigh_numbers_raw, neigh_color_raw, neigh_width_raw]
+#         neigh_count = sum(v is not None and str(v).strip() != '' for v in neigh_params)
+
+#         if neigh_count not in (0, 3):
+#             print("[Aviso] Parâmetros de neurônios vizinhos "
+#                   "('neighboring_neurons_numbers', 'neighboring_neurons_color', 'neighboring_neurons_width') "
+#                   "devem ser usados juntos. Ignorando neurônios vizinhos.")
+#         elif neigh_count == 3:
+#             try:
+#                 nums = [s.strip() for s in str(neigh_numbers_raw).split(',') if s.strip() != '']
+#                 if len(nums) == 0 or len(nums) % 2 != 0:
+#                     raise ValueError("neighboring_neurons_numbers deve conter quantidade PAR de inteiros >= 2.")
+
+#                 ints = [int(v) for v in nums]
+#                 pairs = []
+#                 for i_pair in range(0, len(ints), 2):
+#                     rr = ints[i_pair]
+#                     cc = ints[i_pair+1]
+#                     if not (1 <= rr <= n_rows and 1 <= cc <= n_cols):
+#                         raise ValueError(f"Par (RR,CC)=({rr},{cc}) fora da grade {n_rows}x{n_cols}.")
+#                     pairs.append((rr-1, cc-1))  # zero-based
+#                 neighboring_coords = pairs
+#                 neighboring_color  = str(neigh_color_raw).strip()
+#                 neighboring_width  = float(str(neigh_width_raw).strip())
+#             except Exception as e_nn:
+#                 print(f"[Aviso] Falha ao interpretar parâmetros de neurônios vizinhos: {e_nn}. "
+#                       f"Ignorando neurônios vizinhos.")
+#                 neighboring_coords = []
+#                 neighboring_color  = None
+#                 neighboring_width  = None
+
+#         # ---------- NOVOS parâmetros dos neurônios descartados ----------
+#         discarded_numbers_raw = request.form.get('discarded_neighbor_numbers', None)
+#         discarded_color_raw   = request.form.get('discarded_neighbor_color', None)
+#         discarded_width_raw   = request.form.get('discarded_neighbor_width', None)
+
+#         discarded_params = [discarded_numbers_raw, discarded_color_raw, discarded_width_raw]
+#         discarded_count = sum(v is not None and str(v).strip() != '' for v in discarded_params)
+
+#         if discarded_count not in (0, 3):
+#             print("[Aviso] Parâmetros de neurônios descartados "
+#                   "('discarded_neighbor_numbers', 'discarded_neighbor_color', 'discarded_neighbor_width') "
+#                   "devem ser usados juntos. Ignorando neurônios descartados.")
+#         elif discarded_count == 3:
+#             try:
+#                 nums = [s.strip() for s in str(discarded_numbers_raw).split(',') if s.strip() != '']
+#                 if len(nums) == 0 or len(nums) % 2 != 0:
+#                     raise ValueError("discarded_neighbor_numbers deve conter quantidade PAR de inteiros >= 2.")
+
+#                 ints = [int(v) for v in nums]
+#                 pairs = []
+#                 for i_pair in range(0, len(ints), 2):
+#                     rr = ints[i_pair]
+#                     cc = ints[i_pair+1]
+#                     if not (1 <= rr <= n_rows and 1 <= cc <= n_cols):
+#                         raise ValueError(f"Par (RR,CC)=({rr},{cc}) fora da grade {n_rows}x{n_cols}.")
+#                     pairs.append((rr-1, cc-1))  # zero-based
+#                 discarded_coords = pairs
+#                 discarded_color  = str(discarded_color_raw).strip()
+#                 discarded_width  = float(str(discarded_width_raw).strip())
+#             except Exception as e_disc:
+#                 print(f"[Aviso] Falha ao interpretar parâmetros de neurônios descartados: {e_disc}. "
+#                       f"Ignorando neurônios descartados.")
+#                 discarded_coords = []
+#                 discarded_color  = None
+#                 discarded_width  = None
+
+#         # ==================== INFERÊNCIA ====================
+#         df_pred['neuron'] = list(zip(df_pred.bmu_x, df_pred.bmu_y))
+#         grouped = df_pred.groupby(['neuron','label']).size()
+#         cnt = {k:int(v) for k,v in grouped.items()}
+
+#         actions = []
+#         for x,y,l,pos in zip(df_pred.bmu_x, df_pred.bmu_y, df_pred.label, df_pred.pos):
+#             neigh = [(x+dx,y+dy)
+#                      for dx in (-1,0,1) for dy in (-1,0,1)
+#                      if not (dx==0 and dy==0)
+#                      and 0<=x+dx<n_rows and 0<=y+dy<n_cols
+#                      and cmap[x+dx,y+dy]==cmap[x,y]]
+#             pre = [cnt.get((n,l),0) for n in neigh]
+#             m_prior = float(np.mean(pre)) if pre else 0.0
+#             var_prior = float(np.var(pre)) if len(pre)>1 else 1.0
+#             lik = cnt.get(((x,y),l),0)
+#             post = (m_prior/var_prior + lik)/(1/var_prior + 1) if var_prior>0 else m_prior
+
+#             if m_prior < tau_c:
+#                 actions.append('removed')
+#             elif post >= tau_p:
+#                 actions.append('kept')
+#             else:
+#                 actions.append('flagged')
+
+#         df_res = df_pred[['pos']].copy()
+#         df_res['action'] = actions
+
+#         # mapeamento do 'key' (sem alterar lógica de inferência)
+#         if key in df_pred.columns:
+#             df_res[key] = df_pred[key].values
+#         else:
+#             df_map = df_data.reset_index().rename(columns={'index':'pos'})[['pos', key]]
+#             df_tmp = df_res.merge(df_map, on='pos', how='left')
+
+#             if df_tmp[key].isna().any():
+#                 filled = df_tmp[key].copy()
+#                 for k_it in range(max(0, it-2), -1, -1):
+#                     try:
+#                         df_k = pd.read_csv(os.path.join(data_dir, f'data_{k_it}.csv'))
+#                         df_map_k = df_k.reset_index().rename(columns={'index':'pos'})[['pos', key]]
+#                         aux = df_res[['pos']].merge(df_map_k, on='pos', how='left')[key]
+#                         mask = filled.isna() & aux.notna()
+#                         if mask.any():
+#                             filled.loc[mask] = aux.loc[mask]
+#                         if filled.notna().all():
+#                             break
+#                     except Exception:
+#                         pass
+#                 df_tmp[key] = filled
+
+#             if df_tmp[key].isna().any():
+#                 df_tmp[key] = df_tmp[key].astype(object).where(df_tmp[key].notna(), '')
+
+#             df_res[key] = df_tmp[key].values
+
+#         # ==================== GRAVAÇÕES ====================
+#         out03 = os.path.join(base,'step_03',f'exclusion_map_{it}')
+#         os.makedirs(out03, exist_ok=True)
+
+#         # NÃO ALTERAR: exclusões
+#         excl = df_res[df_res.action=='removed'][[key]].copy()
+#         excl.to_csv(os.path.join(out03,'exclusion_map.csv'),
+#                     index=False, header=[key])
+
+#         # totais
+#         total_before = len(df_pred)
+#         sum_kept    = int((df_res.action=='kept').sum())
+#         sum_removed = int((df_res.action=='removed').sum())
+#         sum_flagged = int((df_res.action=='flagged').sum())
+
+#         # ==========================================================
+#         # DATASET UNIFICADO (agg) — base única p/ PNG, PDF e CSV
+#         # ==========================================================
+#         base_df = df_res.merge(
+#             df_pred[['pos','bmu_x','bmu_y']], on='pos', how='left', validate='one_to_one'
+#         )
+
+#         def _to_set(series):
+#             if series.empty:
+#                 return set()
+#             s = series.dropna()
+#             s = s[~(s.astype(str).str.strip() == '')]
+#             return set(s.tolist())
+
+#         agg = {}
+#         for (bx, by), g in base_df.groupby(['bmu_x','bmu_y']):
+#             agg[(int(bx), int(by))] = {
+#                 'kept':    _to_set(g.loc[g.action=='kept',    key]),
+#                 'removed': _to_set(g.loc[g.action=='removed', key]),
+#                 'flagged': _to_set(g.loc[g.action=='flagged', key]),
+#             }
+
+#         counts_tbl = (
+#             base_df
+#             .groupby(['bmu_x','bmu_y','action'])
+#             .size()
+#             .unstack(fill_value=0)
+#         )
+#         def _get_counts(bx, by):
+#             try:
+#                 row = counts_tbl.loc[(bx, by)]
+#             except KeyError:
+#                 return 0, 0, 0
+#             k = int(row.get('kept', 0))
+#             r = int(row.get('removed', 0))
+#             f = int(row.get('flagged', 0))
+#             return k, r, f
+
+#         # ==========================================================
+#         # Maioria + neurônios usados (cores/legenda) — ITERAÇÃO ATUAL
+#         # LENDO E RESPEITANDO colors.csv, SE EXISTIR
+#         # ==========================================================
+
+#         map_rows, map_cols = n_rows, n_cols
+
+#         majority_label_map: dict = {}
+#         label_to_color: dict = {}
+#         used_neurons: set = set()
+#         labels_map_pie: dict = {}
+
+#         def _norm_label(x):
+#             if pd.isna(x):
+#                 return ''
+#             return str(x).strip()
+
+#         # série de rótulos preferencialmente de df_pred['label']
+#         df_pred = df_pred.copy()
+#         if 'label' in df_pred.columns and not df_pred['label'].isna().all():
+#             labels_series = df_pred['label'].apply(_norm_label)
+#         elif cat_col in df_data.columns:
+#             tmp = df_pred[['pos']].merge(
+#                 df_data[[cat_col]].reset_index().rename(columns={'index': 'pos_idx'}),
+#                 left_on='pos', right_on='pos_idx', how='left'
+#             )
+#             labels_series = tmp[cat_col].apply(_norm_label)
+#             df_pred['label'] = labels_series
+#         else:
+#             labels_series = pd.Series([], dtype=object)
+
+#         df_pred['label_norm'] = labels_series
+#         valid_labels = df_pred['label_norm']
+#         valid_labels = valid_labels[valid_labels != '']
+#         unique_labels = sorted(set(valid_labels.tolist()), key=lambda x: str(x))
+
+#         # colors.csv
+#         colors_path = os.path.join('.', 'projs', proj, 'colors.csv')
+#         try:
+#             if os.path.exists(colors_path):
+#                 df_colors = pd.read_csv(colors_path)
+#                 for _, row_c in df_colors.iterrows():
+#                     lab_str = _norm_label(row_c.get('label', ''))
+#                     hex_str = str(row_c.get('hex', '')).strip()
+#                     if not lab_str or not hex_str:
+#                         continue
+#                     try:
+#                         rgba = to_rgba(hex_str)
+#                         label_to_color[lab_str] = rgba
+#                     except Exception:
+#                         continue
+#         except Exception as e_read_colors:
+#             print(f"[Aviso] Falha ao ler colors.csv: {e_read_colors}")
+
+#         if unique_labels:
+#             cmap_lbl = plt.cm.get_cmap('tab20', max(len(unique_labels), 1))
+#             color_idx = 0
+#             for lab in unique_labels:
+#                 if lab not in label_to_color:
+#                     rgba = cmap_lbl(color_idx % cmap_lbl.N)
+#                     label_to_color[lab] = rgba
+#                     color_idx += 1
+
+#         used_neurons = set(
+#             zip(df_pred['bmu_x'].astype(int), df_pred['bmu_y'].astype(int))
+#         )
+
+#         if 'label_norm' in df_pred.columns:
+#             counts_lbl = (
+#                 df_pred
+#                 .groupby(['bmu_x', 'bmu_y', 'label_norm'])
+#                 .size()
+#                 .reset_index(name='cnt')
+#             )
+#         else:
+#             counts_lbl = pd.DataFrame(columns=['bmu_x', 'bmu_y', 'label_norm', 'cnt'])
+
+#         for (bx, by), sub in counts_lbl.groupby(['bmu_x', 'bmu_y']):
+#             m = sub['cnt'].max()
+#             winners = sub[sub['cnt'] == m]['label_norm'].tolist()
+#             if winners:
+#                 majority_label_map[(int(bx), int(by))] = random.choice(winners)
+
+#         for _, row_p in counts_lbl.iterrows():
+#             bx = int(row_p['bmu_x'])
+#             by = int(row_p['bmu_y'])
+#             lab = _norm_label(row_p['label_norm'])
+#             cval = int(row_p['cnt'])
+#             key_p = (bx, by)
+#             if key_p not in labels_map_pie:
+#                 labels_map_pie[key_p] = {}
+#             labels_map_pie[key_p][lab] = cval
+
+#         # atualiza colors.csv
+#         try:
+#             if label_to_color:
+#                 rows_colors = []
+#                 for lab in sorted(label_to_color.keys(), key=lambda x: str(x)):
+#                     rgba = label_to_color[lab]
+#                     hex_color = to_hex(rgba, keep_alpha=False)
+#                     rows_colors.append({'label': _norm_label(lab), 'hex': hex_color})
+#                 pd.DataFrame(rows_colors).to_csv(
+#                     colors_path,
+#                     index=False,
+#                     encoding='utf-8-sig'
+#                 )
+#         except Exception as e_colors:
+#             print(f"[Aviso] Falha ao gravar colors.csv: {e_colors}")
+
+#         # ---------------- função p/ desenhar borda de neurônios específicos ----------------
+#         def draw_highlighted_neurons(ax, rows_map, cols_map, y_off_val,
+#                                      coords, color, width, zorder_val):
+#             if not coords or color is None or width is None:
+#                 return
+#             radius_hex = 0.5
+#             for (rr0, cc0) in coords:
+#                 if 0 <= rr0 < rows_map and 0 <= cc0 < cols_map:
+#                     x_off = 0.5 if (rr0 % 2) else 0.0
+#                     cx, cy = (cc0 + x_off, (rows_map - 1 - rr0) * y_off_val)
+#                     border_patch = RegularPolygon(
+#                         xy=(cx, cy), numVertices=6, radius=radius_hex,
+#                         orientation=math.radians(30),
+#                         facecolor='none',
+#                         edgecolor=color,
+#                         linewidth=width,
+#                         zorder=zorder_val
+#                     )
+#                     ax.add_patch(border_patch)
+
+#         # ---------------- função p/ desenhar contorno do cluster ----------------
+#         def draw_cluster_border(ax, rows_map, cols_map, y_off_val):
+#             if not highlight_cluster or not cluster_cells:
+#                 return
+#             ori = math.radians(30.0)
+#             radius_hex = 0.5
+#             cells = cluster_cells
+
+#             for bx, by in cells:
+#                 if not (0 <= bx < rows_map and 0 <= by < cols_map):
+#                     continue
+#                 x_off = 0.5 if (bx % 2) else 0.0
+#                 cx, cy = (by + x_off, (rows_map - 1 - bx) * y_off_val)
+
+#                 verts = []
+#                 for k in range(6):
+#                     ang = ori + 2.0 * math.pi * k / 6.0
+#                     vx = cx + radius_hex * math.cos(ang)
+#                     vy = cy + radius_hex * math.sin(ang)
+#                     verts.append((vx, vy))
+
+#                 if bx % 2 == 0:
+#                     neighbors = [
+#                         (0,  1, 5),   # E  -> lado 5
+#                         (0, -1, 2),   # W  -> lado 2
+#                         (-1,  0, 0),  # NE -> lado 0
+#                         (-1, -1, 1),  # NW -> lado 1
+#                         (1,  0, 4),   # SE -> lado 4
+#                         (1, -1, 3),   # SW -> lado 3
+#                     ]
+#                 else:
+#                     neighbors = [
+#                         (0,  1, 5),   # E  -> lado 5
+#                         (0, -1, 2),   # W  -> lado 2
+#                         (-1,  1, 0),  # NE -> lado 0
+#                         (-1,  0, 1),  # NW -> lado 1
+#                         (1,  1, 4),   # SE -> lado 4
+#                         (1,  0, 3),   # SW -> lado 3
+#                     ]
+
+#                 for dy, dx, side_idx in neighbors:
+#                     ny = bx + dy
+#                     nx = by + dx
+#                     if not (0 <= ny < rows_map and 0 <= nx < cols_map) or (ny, nx) not in cells:
+#                         v1 = verts[side_idx]
+#                         v2 = verts[(side_idx + 1) % 6]
+#                         ax.plot(
+#                             [v1[0], v2[0]],
+#                             [v1[1], v2[1]],
+#                             color=cluster_color,
+#                             linewidth=cluster_width,
+#                             zorder=6
+#                         )
+
+#         # ---------------- função p/ desenhar legenda "BOUNDED AREAS" ----------------
+#         def draw_bounded_areas_legend(fig, ax, legend_entries,
+#                                       font_size, width_px):
+#             """
+#             Desenha a legenda 'BOUNDED AREAS' em um NOVO eixo
+#             no canto inferior direito da figura (fora da grade neural).
+#             """
+#             if not legend_entries:
+#                 return
+
+#             # defaults suaves caso algum valor venha None
+#             if font_size is None:
+#                 font_size = 10
+#             if width_px is None:
+#                 width_px = 2.0
+
+#             # linewidth em pontos, a partir de pixels
+#             try:
+#                 dpi_val = float(getattr(fig, 'dpi', 100.0))
+#             except Exception:
+#                 dpi_val = 100.0
+#             try:
+#                 lw_pts = float(width_px) * 72.0 / dpi_val
+#             except Exception:
+#                 lw_pts = 1.0
+
+#             # ------------------------------------------------------------------
+#             # NOVO: cria um eixo só para a legenda BOUNDED AREAS,
+#             # em coordenadas da FIGURA (x,y,width,height).
+#             # Ajuste estes quatro números para mover a legenda:
+#             #   [x_inicial, y_inicial, largura, altura]
+#             # ------------------------------------------------------------------
+#             ax_leg = fig.add_axes([0.85, 0.1, 0.18, 0.18])
+#             ax_leg.axis('off')
+
+#             # Coordenadas em sistema de eixos do ax_leg (0–1 em x e y)
+#             # >>> PARA AJUSTAR A POSIÇÃO HORIZONTAL:
+#             #     mexa em x_line_start, x_line_end e x_text (0 a 1).
+#             x_line_start = 0.05
+#             x_line_end   = 0.57
+#             x_text       = 0.70
+
+#             # Posição vertical base e espaçamento entre linhas
+#             n_entries = max(len(legend_entries), 1)
+#             base_y = 0.65
+#             dy     = 0.50 / n_entries
+
+#             # título logo acima da primeira linha
+#             ax_leg.text(0.5, 0.95,
+#                         "BOUNDED AREAS IN WHICH\nOBSERVATIONS ARE ANALYZED",
+#                         transform=ax_leg.transAxes,
+#                         ha='center', va='top',
+#                         fontsize=font_size,
+#                         fontweight='bold',
+#                         color='black')
+
+#             # linhas + rótulos
+#             for i, ent in enumerate(legend_entries):
+#                 y = base_y - i*dy
+#                 color = ent.get('color', 'black')
+#                 label = ent.get('label', '')
+
+#                 # linha da legenda
+#                 ax_leg.plot([x_line_start, x_line_end], [y, y],
+#                             transform=ax_leg.transAxes,
+#                             color=color,
+#                             linewidth=lw_pts)
+
+#                 # texto da legenda
+#                 ax_leg.text(x_text, y, label,
+#                             transform=ax_leg.transAxes,
+#                             ha='left', va='center',
+#                             fontsize=font_size,
+#                             color='black')
+
+
+
+#         # --------------------------------------------------------------
+#         # Lista única de entradas da legenda BOUNDED AREAS,
+#         # usada em TODOS os mapas onde as linhas forem desenhadas.
+#         # --------------------------------------------------------------
+#         bounded_legend_entries = []
+#         if highlight_cluster and cluster_cells and cluster_color is not None:
+#             bounded_legend_entries.append({
+#                 'color': cluster_color,
+#                 'label': 'Cluster'
+#             })
+#         if focal_coords and focal_color is not None:
+#             bounded_legend_entries.append({
+#                 'color': focal_color,
+#                 'label': 'Neuron'
+#             })
+#         if neighboring_coords and neighboring_color is not None:
+#             bounded_legend_entries.append({
+#                 'color': neighboring_color,
+#                 'label': 'Neighbors'
+#             })
+#         if discarded_coords and discarded_color is not None:
+#             bounded_legend_entries.append({
+#                 'color': discarded_color,
+#                 'label': 'Non-neighbors'
+#             })
+
+
+#         # tamanho de fonte / largura para a legenda (com fallback)
+#         legend_font_size  = bounded_areas_legend_font  if bounded_areas_legend_font  is not None else 10
+#         legend_width_px   = bounded_areas_legend_width if bounded_areas_legend_width is not None else 2.0
+
+#         # ==========================================================
+#         # PNG kept/removed/flagged — cores por cultura majoritária
+#         # ==========================================================
+#         try:
+#             # fig = plt.figure(figsize=(max(10, map_cols*0.4), max(8, map_rows*0.4)), dpi=100)
+#             # ax  = fig.add_subplot(1,1,1)
+#             # ax.axis('off')
+
+#             fig = plt.figure(figsize=(max(10, map_cols*0.4), max(8, map_rows*0.4)), dpi=100)
+#             fig.patch.set_facecolor('white')            
+#             ax  = fig.add_subplot(1,1,1)
+#             ax.set_facecolor('white')
+#             ax.axis('off')
+
+#             y_off = math.sqrt(3)/2
+#             d_top, d_mid, d_bot = 0.22, 0.00, -0.22
+#             tri_h, tri_w, tri_dx = 0.12, 0.12, 0.32
+
+#             agg_neurons = set(agg.keys())
+
+#             # ---------- desenha SOM com cores de maioria (SEM status ainda) ----------
+#             for bx in range(map_rows):
+#                 for by in range(map_cols):
+#                     x_off = 0.5 if (bx % 2) else 0.0
+#                     cx, cy = (by + x_off, (map_rows-1-bx) * y_off)
+
+#                     in_use = (bx, by) in agg_neurons
+
+#                     if in_use:
+#                         lab  = majority_label_map.get((bx, by))
+#                         face = label_to_color.get(lab, (0.9,0.9,0.9,1.0))
+#                     else:
+#                         face = 'white'
+
+#                     ax.add_patch(RegularPolygon(
+#                         xy=(cx, cy), numVertices=6, radius=0.5, orientation=math.radians(30),
+#                         facecolor=face,
+#                         edgecolor='white' if face!='white' else 'black',
+#                         linewidth=0.8 if face=='white' else 0.2
+#                     ))
+
+#                     # índices RR,CC (apenas se solicitado)
+#                     if with_indexes and indexes_font is not None:
+#                         rr = f"{(bx+1):02d}"
+#                         cc = f"{(by+1):02d}"
+#                         ax.text(cx, cy + d_bot, f"{rr},{cc}",
+#                                 ha='center', va='center', fontsize=indexes_font,
+#                                 color='black', fontweight='normal', zorder=6)
+
+#             # --------- legenda de culturas ---------
+#             legend_labels = []
+#             if unique_labels:
+#                 legend_labels = list(unique_labels)
+
+#             if cat_col in df_data.columns:
+#                 all_data_labels = sorted(
+#                     df_data[cat_col].dropna().astype(str).unique().tolist()
+#                 )
+#                 extra = [lab for lab in all_data_labels if lab not in legend_labels]
+#                 legend_labels.extend(extra)
+
+#             if legend_labels:
+#                 legend_labels = sorted(set(legend_labels), key=lambda x: str(x))
+
+#             if legend_labels:
+#                 for lab in legend_labels:
+#                     if lab not in label_to_color:
+#                         label_to_color[lab] = (0.85, 0.85, 0.85, 1.0)
+#                 class_patches = [
+#                     Patch(facecolor=label_to_color[lab],
+#                           edgecolor='white',
+#                           label=str(lab))
+#                     for lab in legend_labels
+#                 ]
+#             else:
+#                 class_patches = []
+
+#             unused_patch = Patch(
+#                 facecolor='white',
+#                 edgecolor='black',
+#                 linewidth=1.2,
+#                 label='Unused'
+#             )
+#             fig.legend(
+#                 [unused_patch] + class_patches,
+#                 ['Unused'] + [p.get_label() for p in class_patches],
+#                 loc='upper left',
+#                 bbox_to_anchor=(1.05, 1),
+#                 fancybox=True,
+#                 shadow=True,
+#                 prop={'size': 10},
+#                 ncol=1
+#             )
+
+#             # SUMMARY (como antes)
+#             perc_kept    = round(sum_kept / total_before * 100, 2) if total_before else 0.0
+#             perc_removed = round(sum_removed / total_before * 100, 2) if total_before else 0.0
+#             perc_flagged = round(sum_flagged / total_before * 100, 2) if total_before else 0.0
+#             summary_rows = [
+#                 ['TOTAL',       f'{total_before}'],
+#                 ['Kept',        f'{sum_kept}'],
+#                 ['% Kept',      f'{perc_kept}'],
+#                 ['Removed',     f'{sum_removed}'],
+#                 ['% Removed',   f'{perc_removed}'],
+#                 ['Flagged',     f'{sum_flagged}'],
+#                 ['% Flagged',   f'{perc_flagged}'],
+#             ]
+#             ax_sum = fig.add_axes([0.84, 0.18, 0.14, 0.32])
+#             ax_sum.axis('off')
+#             ax_sum.text(0.5, 1.02, 'SUMMARY', transform=ax_sum.transAxes,
+#                         ha='center', va='bottom', fontsize=14, fontweight='bold')
+#             tbl_sum = ax_sum.table(cellText=summary_rows, colLabels=None,
+#                                    colWidths=[0.9, 0.52], cellLoc='left', loc='upper left')
+#             tbl_sum.auto_set_font_size(False)
+#             tbl_sum.set_fontsize(12)
+
+#             # neurônios descartados, vizinhos e focais (ANTES do contorno do cluster)
+#             draw_highlighted_neurons(
+#                 ax, map_rows, map_cols, y_off,
+#                 discarded_coords, discarded_color, discarded_width, zorder_val=5.0
+#             )
+#             draw_highlighted_neurons(
+#                 ax, map_rows, map_cols, y_off,
+#                 neighboring_coords, neighboring_color, neighboring_width, zorder_val=5.05
+#             )
+#             draw_highlighted_neurons(
+#                 ax, map_rows, map_cols, y_off,
+#                 focal_coords, focal_color, focal_width, zorder_val=5.2
+#             )
+
+#             # contorno do cluster (sempre por cima)
+#             draw_cluster_border(ax, map_rows, map_cols, y_off)
+
+#             # NOVO: legenda BOUNDED AREAS (se houver pelo menos uma linha)
+#             if bounded_legend_entries:
+#                 draw_bounded_areas_legend(
+#                     fig, ax,
+#                     bounded_legend_entries,
+#                     legend_font_size,
+#                     legend_width_px
+#                 )
+
+#             ax.set_xlim(-0.5, map_cols)
+#             ax.set_ylim(-0.5, map_rows*y_off + y_off/2)
+#             ax.set_aspect('equal')
+
+#             # ---------- AJUSTE DE LAYOUT COMUM AOS DOIS PNGs ----------
+#             plt.subplots_adjust(right=0.82, top=0.93)
+
+#             # ==================================================
+#             # NOVO PNG "limpo" (sem + / - / triângulos / legenda de status)
+#             # ==================================================
+#             majority_incidence_png = os.path.join(
+#                 out03, f'{prefix}.majority_incidence.png'
+#             )
+#             # fig.savefig(majority_incidence_png, bbox_inches='tight', dpi=120)
+#             # fig.savefig(majority_incidence_png, bbox_inches='tight', dpi=ARTWORK_DPI)
+#             # fig.savefig(majority_incidence_png, bbox_inches='tight', dpi=ARTWORK_DPI, pil_kwargs={"dpi": (ARTWORK_DPI, ARTWORK_DPI)})
+#             save_png_svg_pdf_eps(fig, majority_incidence_png)
+
+#             # ==================================================
+#             # AGORA, ADICIONA STATUS + LEGENDA DE STATUS
+#             # (para o PNG "krf", com MESMA lógica original)
+#             # ==================================================
+
+#             ############### SUBSTITUIR ISSO... ###############
+#             # kept_h = Line2D([0],[0], marker='$+$', color='green', linestyle='None',
+#             #                 markersize=16, markeredgewidth=0, label='Kept')
+#             # rem_h  = Line2D([0],[0], marker='$-$', color='red', linestyle='None',
+#             #                 markersize=16, markeredgewidth=0, label='Removed')
+#             # flag_l = Line2D([0],[0], marker='<',  color='black', markerfacecolor='black',
+#             #                 linestyle='None', markersize=10)
+#             # flag_r = Line2D([0],[0], marker='>',  color='black', markerfacecolor='black',
+#             #                 linestyle='None', markersize=10)
+#             # fig.legend(handles=[kept_h, rem_h, (flag_l, flag_r)],
+#             #            labels=['Kept', 'Removed', 'Flagged'],
+#             #            handler_map={tuple: HandlerTuple(ndivide=None, pad=0.25)},
+#             #            loc='upper left', bbox_to_anchor=(1.05, 0.60),
+#             #            fancybox=True, shadow=True, prop={'size': 10})    
+#             ################## POR ISSO... ###################
+#             if show_krf:
+#                 kept_h = Line2D([0],[0], marker='$+$', color='green', linestyle='None',
+#                                 markersize=16, markeredgewidth=0, label='Kept')
+#                 rem_h  = Line2D([0],[0], marker='$-$', color='red', linestyle='None',
+#                                 markersize=16, markeredgewidth=0, label='Removed')
+#                 flag_l = Line2D([0],[0], marker='<',  color='black', markerfacecolor='black',
+#                                 linestyle='None', markersize=10)
+#                 flag_r = Line2D([0],[0], marker='>',  color='black', markerfacecolor='black',
+#                                 linestyle='None', markersize=10)
+#                 fig.legend(handles=[kept_h, rem_h, (flag_l, flag_r)],
+#                            labels=['Kept', 'Removed', 'Flagged'],
+#                            handler_map={tuple: HandlerTuple(ndivide=None, pad=0.25)},
+#                            loc='upper left', bbox_to_anchor=(1.05, 0.60),
+#                            fancybox=True, shadow=True, prop={'size': 10})    
+#             ##################################################
+
+#             # desenha símbolos de status em cada neurônio (mesma lógica original)
+                                            
+#             ############### SUBSTITUIR ISSO... ###############
+#             # for bx in range(map_rows):
+#             #     for by in range(map_cols):
+#             #         if (bx, by) not in agg_neurons:
+#             #             continue    
+#             ################## POR ISSO... ###################
+#             if show_krf:
+#                 for bx in range(map_rows):
+#                     for by in range(map_cols):
+#                         if (bx, by) not in agg_neurons:
+#                             continue
+#                         x_off = 0.5 if (bx % 2) else 0.0
+#                         cx, cy = (by + x_off, (map_rows-1-bx) * y_off)
+#                         a_sets = agg.get((bx, by))
+#                         if not a_sets:
+#                             continue
+#                         if a_sets['kept']:
+#                             ax.text(cx, cy + d_top, '+',
+#                                     ha='center', va='center', fontsize=12,
+#                                     color='green', fontweight='bold', zorder=5)
+#                         if a_sets['removed']:
+#                             ax.text(cx, cy + d_mid, '–',
+#                                     ha='center', va='center', fontsize=16,
+#                                     color='red', fontweight='bold', zorder=5)
+#                         if a_sets['flagged']:
+#                             left_tri = Polygon(
+#                                 [(cx - tri_dx - tri_w/2, cy),
+#                                  (cx - tri_dx + tri_w/2, cy + tri_h/2),
+#                                  (cx - tri_dx + tri_w/2, cy - tri_h/2)],
+#                                 closed=True, facecolor='black', edgecolor='black', zorder=5
+#                             )
+#                             right_tri = Polygon(
+#                                 [(cx + tri_dx + tri_w/2, cy),
+#                                  (cx + tri_dx - tri_w/2, cy + tri_h/2),
+#                                  (cx + tri_dx - tri_w/2, cy - tri_h/2)],
+#                                 closed=True, facecolor='black', edgecolor='black', zorder=5
+#                             )
+#                             ax.add_patch(left_tri)
+#                             ax.add_patch(right_tri)    
+#             ##################################################                    
+            
+#             ## ------BLOCO ABAIXO MOVIDO QUATRO ESPAÇOS PARA A DIREITA
+                    
+#                         x_off = 0.5 if (bx % 2) else 0.0
+#                         cx, cy = (by + x_off, (map_rows-1-bx) * y_off)
+#                         a_sets = agg.get((bx, by))
+#                         if not a_sets:
+#                             continue
+#                         if a_sets['kept']:
+#                             ax.text(cx, cy + d_top, '+',
+#                                     ha='center', va='center', fontsize=12,
+#                                     color='green', fontweight='bold', zorder=5)
+#                         if a_sets['removed']:
+#                             ax.text(cx, cy + d_mid, '–',
+#                                     ha='center', va='center', fontsize=16,
+#                                     color='red', fontweight='bold', zorder=5)
+#                         if a_sets['flagged']:
+#                             left_tri = Polygon(
+#                                 [(cx - tri_dx - tri_w/2, cy),
+#                                  (cx - tri_dx + tri_w/2, cy + tri_h/2),
+#                                  (cx - tri_dx + tri_w/2, cy - tri_h/2)],
+#                                 closed=True, facecolor='black', edgecolor='black', zorder=5
+#                             )
+#                             right_tri = Polygon(
+#                                 [(cx + tri_dx + tri_w/2, cy),
+#                                  (cx + tri_dx - tri_w/2, cy + tri_h/2),
+#                                  (cx + tri_dx - tri_w/2, cy - tri_h/2)],
+#                                 closed=True, facecolor='black', edgecolor='black', zorder=5
+#                             )
+#                             ax.add_patch(left_tri)
+#                             ax.add_patch(right_tri)
+    
+#             ## ------BLOCO ACIMA MOVIDO QUATRO ESPAÇOS PARA A DIREITA
+
+#             kept_removed_flagged_png = os.path.join(
+#                 out03, f'{prefix}.majority_incidence.krf.png'
+#             )
+#             # fig.savefig(kept_removed_flagged_png, bbox_inches='tight', dpi=120)
+#             # fig.savefig(kept_removed_flagged_png, bbox_inches='tight', dpi=ARTWORK_DPI, pil_kwargs={"dpi": (ARTWORK_DPI, ARTWORK_DPI)})
+#             save_png_svg_pdf_eps(fig, kept_removed_flagged_png)
+            
+            
+#             plt.close(fig)
+
+#             # ==================================================
+#             # PNG kept_removed_flagged__targets_x_bmu.png (pizza)
+#             # ==================================================
+#             try:
+#                 if labels_map_pie and unique_labels:
+#                     # fig_p = plt.figure(figsize=(max(10, map_cols*0.4), max(8, map_rows*0.4)), dpi=100)
+#                     # ax_p  = fig_p.add_subplot(1,1,1)
+#                     # ax_p.axis('off')
+                    
+#                     fig_p = plt.figure(figsize=(max(10, map_cols*0.4), max(8, map_rows*0.4)), dpi=100)
+#                     fig_p.patch.set_facecolor('white')                    
+#                     ax_p  = fig_p.add_subplot(1,1,1)
+#                     ax_p.set_facecolor('white')
+#                     ax_p.axis('off')
+
+#                     y_off_p = y_off
+#                     d_top_p, d_mid_p, d_bot_p = d_top, d_mid, d_bot
+#                     tri_h_p, tri_w_p, tri_dx_p = tri_h, tri_w, tri_dx
+#                     radius_hex = 0.5
+
+#                     agg_neurons_p = agg_neurons.copy()
+
+#                     # legenda de classes (MESMA ORDEM do PNG principal)
+#                     if 'legend_labels' in locals() and legend_labels:
+#                         legend_labels_p = legend_labels
+#                     else:
+#                         legend_labels_p = sorted(set(unique_labels), key=lambda x: str(x))
+
+#                     class_patches_p = [
+#                         Patch(
+#                             facecolor=label_to_color[l],
+#                             edgecolor='white',
+#                             label=str(l)
+#                         )
+#                         for l in legend_labels_p
+#                     ]
+#                     unused_patch_p = Patch(
+#                         facecolor='white',
+#                         edgecolor='black',
+#                         linewidth=1.2,
+#                         label='Unused'
+#                     )
+#                     fig_p.legend(
+#                         [unused_patch_p] + class_patches_p,
+#                         ['Unused'] + [p.get_label() for p in class_patches_p],
+#                         loc='upper right',
+#                         bbox_to_anchor=(1.02, 1),
+#                         fancybox=True,
+#                         shadow=True,
+#                         prop={'size': 10},
+#                         ncol=1
+#                     )
+
+#                     # desenha SOM em pizza (SEM status inicialmente)
+#                     for bx in range(map_rows):
+#                         for by in range(map_cols):
+#                             x_off = 0.5 if (bx % 2) else 0.0
+#                             cx, cy = (by + x_off, (map_rows - 1 - bx) * y_off_p)
+
+#                             in_use = (bx, by) in agg_neurons_p
+#                             cnts   = labels_map_pie.get((bx, by), {}) if in_use else {}
+#                             maj_lab = majority_label_map.get((bx, by))
+
+#                             if not in_use:
+#                                 ax_p.add_patch(RegularPolygon(
+#                                     xy=(cx, cy), numVertices=6, radius=radius_hex,
+#                                     orientation=math.radians(30),
+#                                     facecolor='white',
+#                                     edgecolor='black',
+#                                     linewidth=0.8
+#                                 ))
+#                             elif not cnts and maj_lab:
+#                                 face = label_to_color.get(maj_lab, (0.9, 0.9, 0.9, 1.0))
+#                                 ax_p.add_patch(RegularPolygon(
+#                                     xy=(cx, cy), numVertices=6, radius=radius_hex,
+#                                     orientation=math.radians(30),
+#                                     facecolor=face,
+#                                     edgecolor='black',
+#                                     linewidth=0.8
+#                                 ))
+#                             elif not cnts:
+#                                 ax_p.add_patch(RegularPolygon(
+#                                     xy=(cx, cy), numVertices=6, radius=radius_hex,
+#                                     orientation=math.radians(30),
+#                                     facecolor='white',
+#                                     edgecolor='black',
+#                                     linewidth=0.8
+#                                 ))
+#                             else:
+#                                 labs = sorted(cnts.keys(), key=lambda x: str(x))
+#                                 fracs = [cnts[lab] for lab in labs]
+#                                 cols_slice = [
+#                                     label_to_color.get(lab, (0.85, 0.85, 0.85, 1.0))
+#                                     for lab in labs
+#                                 ]
+
+#                                 hex_border = RegularPolygon(
+#                                     (cx, cy), numVertices=6, radius=radius_hex,
+#                                     orientation=math.radians(30),
+#                                     facecolor='none', edgecolor='white', linewidth=0.3,
+#                                     transform=ax_p.transData
+#                                 )
+
+#                                 wedges, _ = ax_p.pie(
+#                                     fracs,
+#                                     startangle=90,
+#                                     radius=radius_hex * 0.98,
+#                                     colors=cols_slice,
+#                                     center=(cx, cy),
+#                                     wedgeprops={'linewidth': 0}
+#                                 )
+#                                 for w in wedges:
+#                                     w.set_clip_path(hex_border)
+
+#                                 ax_p.add_patch(RegularPolygon(
+#                                     xy=(cx, cy), numVertices=6, radius=radius_hex,
+#                                     orientation=math.radians(30),
+#                                     facecolor='none', edgecolor='black', linewidth=0.8
+#                                 ))
+
+#                             if with_indexes and indexes_font is not None:
+#                                 rr = f"{(bx+1):02d}"
+#                                 cc = f"{(by+1):02d}"
+#                                 ax_p.text(cx, cy + d_bot_p, f"{rr},{cc}",
+#                                           ha='center', va='center', fontsize=indexes_font,
+#                                           color='black', fontweight='normal', zorder=6)
+
+#                     # SUMMARY (mesmo do primeiro PNG)
+#                     ax_sum_p = fig_p.add_axes([0.84, 0.18, 0.14, 0.32])
+#                     ax_sum_p.axis('off')
+#                     ax_sum_p.text(0.5, 1.02, 'SUMMARY', transform=ax_sum_p.transAxes,
+#                                   ha='center', va='bottom', fontsize=14, fontweight='bold')
+#                     tbl_sum_p = ax_sum_p.table(
+#                         cellText=summary_rows,
+#                         colLabels=None,
+#                         colWidths=[0.9, 0.52],
+#                         cellLoc='left',
+#                         loc='upper left'
+#                     )
+#                     tbl_sum_p.auto_set_font_size(False)
+#                     tbl_sum_p.set_fontsize(12)
+
+#                     # neurônios descartados, vizinhos e focais (ANTES do contorno do cluster)
+#                     draw_highlighted_neurons(
+#                         ax_p, map_rows, map_cols, y_off_p,
+#                         discarded_coords, discarded_color, discarded_width, zorder_val=5.0
+#                     )
+#                     draw_highlighted_neurons(
+#                         ax_p, map_rows, map_cols, y_off_p,
+#                         neighboring_coords, neighboring_color, neighboring_width, zorder_val=5.05
+#                     )
+#                     draw_highlighted_neurons(
+#                         ax_p, map_rows, map_cols, y_off_p,
+#                         focal_coords, focal_color, focal_width, zorder_val=5.2
+#                     )
+
+#                     # contorno do cluster
+#                     draw_cluster_border(ax_p, map_rows, map_cols, y_off_p)
+
+#                     # NOVO: legenda BOUNDED AREAS também no mapa em pizza
+#                     if bounded_legend_entries:
+#                         draw_bounded_areas_legend(
+#                             fig_p, ax_p,
+#                             bounded_legend_entries,
+#                             legend_font_size,
+#                             legend_width_px
+#                         )
+
+#                     ax_p.set_xlim(-0.5, map_cols)
+#                     ax_p.set_ylim(-0.5, map_rows*y_off_p + y_off_p/2)
+#                     ax_p.set_aspect('equal')
+
+#                     plt.subplots_adjust(right=0.82, top=0.93)
+
+#                     # -------------------------------------------
+#                     # NOVO PNG "limpo" (sem status) — bmus_x_neurons
+#                     # -------------------------------------------
+#                     bmus_x_neurons_png = os.path.join(
+#                         out03, f'{prefix}.bmus_x_neurons.png'
+#                     )
+#                     # fig_p.savefig(bmus_x_neurons_png, bbox_inches='tight', dpi=120)
+#                     # fig_p.savefig(bmus_x_neurons_png, bbox_inches='tight', dpi=ARTWORK_DPI, pil_kwargs={"dpi": (ARTWORK_DPI, ARTWORK_DPI)})
+#                     save_png_svg_pdf_eps(fig_p, bmus_x_neurons_png)
+
+#                     # -------------------------------------------
+#                     # AGORA ADICIONA LEGENDA DE STATUS E SÍMBOLOS
+#                     # (versão .krf, mesma lógica original)
+#                     # -------------------------------------------
+
+
+#                     ############### SUBSTITUIR ISSO... ###############
+                    
+#                     # kept_h_p = Line2D([0],[0], marker='$+$', color='green', linestyle='None',
+#                     #                   markersize=16, markeredgewidth=0, label='Kept')
+#                     # rem_h_p  = Line2D([0],[0], marker='$-$', color='red', linestyle='None',
+#                     #                   markersize=16, markeredgewidth=0, label='Removed')
+#                     # flag_l_p = Line2D([0],[0], marker='<',  color='black', markerfacecolor='black',
+#                     #                   linestyle='None', markersize=10)
+#                     # flag_r_p = Line2D([0],[0], marker='>',  color='black', markerfacecolor='black',
+#                     #                   linestyle='None', markersize=10)
+#                     # fig_p.legend(handles=[kept_h_p, rem_h_p, (flag_l_p, flag_r_p)],
+#                     #              labels=['Kept', 'Removed', 'Flagged'],
+#                     #              handler_map={tuple: HandlerTuple(ndivide=None, pad=0.25)},
+#                     #              loc='upper right',
+#                     #              bbox_to_anchor=(1, 0.7),
+#                     #              fancybox=True, shadow=True, prop={'size': 10})                    
+            
+#                     ################## POR ISSO... ###################
+            
+#                     if show_krf:
+                    
+#                         kept_h_p = Line2D([0],[0], marker='$+$', color='green', linestyle='None',
+#                                           markersize=16, markeredgewidth=0, label='Kept')
+                    
+#                         rem_h_p  = Line2D([0],[0], marker='$-$', color='red', linestyle='None',
+#                                           markersize=16, markeredgewidth=0, label='Removed')
+                    
+#                         flag_l_p = Line2D([0],[0], marker='<', color='black',
+#                                           markerfacecolor='black',
+#                                           linestyle='None', markersize=10)
+                    
+#                         flag_r_p = Line2D([0],[0], marker='>', color='black',
+#                                           markerfacecolor='black',
+#                                           linestyle='None', markersize=10)
+                    
+#                         fig_p.legend(
+#                             handles=[kept_h_p, rem_h_p, (flag_l_p, flag_r_p)],
+#                             labels=['Kept', 'Removed', 'Flagged'],
+#                             handler_map={tuple: HandlerTuple(ndivide=None, pad=0.25)},
+#                             loc='upper right',
+#                             bbox_to_anchor=(1, 0.7),
+#                             fancybox=True,
+#                             shadow=True,
+#                             prop={'size': 10}
+#                         )            
+            
+#                     ##################################################
+
+
+
+#                     # desenha símbolos de status em cada neurônio
+                                                            
+#                     ############### SUBSTITUIR ISSO... ###############
+#                     # for bx in range(map_rows):
+#                     #     for by in range(map_cols):
+#                     #         if (bx, by) not in agg_neurons_p:
+#                     #             continue            
+#                     ################## POR ISSO... ###################
+#                     if show_krf:
+#                         for bx in range(map_rows):
+#                             for by in range(map_cols):
+#                                 if (bx, by) not in agg_neurons_p:
+#                                     continue
+#                                 x_off = 0.5 if (bx % 2) else 0.0
+#                                 cx, cy = (by + x_off, (map_rows - 1 - bx) * y_off_p)
+#                                 a_sets = agg.get((bx, by))
+#                                 if not a_sets:
+#                                     continue
+#                                 if a_sets['kept']:
+#                                     ax_p.text(cx, cy + d_top_p, '+',
+#                                               ha='center', va='center', fontsize=12,
+#                                               color='green', fontweight='bold', zorder=5)
+#                                 if a_sets['removed']:
+#                                     ax_p.text(cx, cy + d_mid_p, '–',
+#                                               ha='center', va='center', fontsize=16,
+#                                               color='red', fontweight='bold', zorder=5)
+#                                 if a_sets['flagged']:
+#                                     left_tri_p = Polygon(
+#                                         [(cx - tri_dx_p - tri_w_p/2, cy),
+#                                          (cx - tri_dx_p + tri_w_p/2, cy + tri_h_p/2),
+#                                          (cx - tri_dx_p + tri_w_p/2, cy - tri_h_p/2)],
+#                                         closed=True, facecolor='black', edgecolor='black', zorder=5
+#                                     )
+#                                     right_tri_p = Polygon(
+#                                         [(cx + tri_dx_p + tri_w_p/2, cy),
+#                                          (cx + tri_dx_p - tri_w_p/2, cy + tri_h_p/2),
+#                                          (cx + tri_dx_p - tri_w_p/2, cy - tri_h_p/2)],
+#                                         closed=True, facecolor='black', edgecolor='black', zorder=5
+#                                     )
+#                                     ax_p.add_patch(left_tri_p)
+#                                     ax_p.add_patch(right_tri_p)            
+#                     ##################################################
+                                
+#                     ## ------BLOCO ABAIXO MOVIDO QUATRO ESPAÇOS PARA A DIREITA
+#                                 x_off = 0.5 if (bx % 2) else 0.0
+#                                 cx, cy = (by + x_off, (map_rows - 1 - bx) * y_off_p)
+#                                 a_sets = agg.get((bx, by))
+#                                 if not a_sets:
+#                                     continue
+#                                 if a_sets['kept']:
+#                                     ax_p.text(cx, cy + d_top_p, '+',
+#                                               ha='center', va='center', fontsize=12,
+#                                               color='green', fontweight='bold', zorder=5)
+#                                 if a_sets['removed']:
+#                                     ax_p.text(cx, cy + d_mid_p, '–',
+#                                               ha='center', va='center', fontsize=16,
+#                                               color='red', fontweight='bold', zorder=5)
+#                                 if a_sets['flagged']:
+#                                     left_tri_p = Polygon(
+#                                         [(cx - tri_dx_p - tri_w_p/2, cy),
+#                                          (cx - tri_dx_p + tri_w_p/2, cy + tri_h_p/2),
+#                                          (cx - tri_dx_p + tri_w_p/2, cy - tri_h_p/2)],
+#                                         closed=True, facecolor='black', edgecolor='black', zorder=5
+#                                     )
+#                                     right_tri_p = Polygon(
+#                                         [(cx + tri_dx_p + tri_w_p/2, cy),
+#                                          (cx + tri_dx_p - tri_w_p/2, cy + tri_h_p/2),
+#                                          (cx + tri_dx_p - tri_w_p/2, cy - tri_h_p/2)],
+#                                         closed=True, facecolor='black', edgecolor='black', zorder=5
+#                                     )
+#                                     ax_p.add_patch(left_tri_p)
+#                                     ax_p.add_patch(right_tri_p)
+
+#                     ## ------BLOCO ABAIXO MOVIDO QUATRO ESPAÇOS PARA A DIREITA
+                    
+#                     kept_removed_flagged_targets_png = os.path.join(
+#                         out03, f'{prefix}.bmus_x_neurons.krf.png'
+#                     )
+#                     # fig_p.savefig(kept_removed_flagged_targets_png, bbox_inches='tight', dpi=120)
+#                     # fig_p.savefig(kept_removed_flagged_targets_png, bbox_inches='tight', dpi=ARTWORK_DPI, pil_kwargs={"dpi": (ARTWORK_DPI, ARTWORK_DPI)})                    
+#                     save_png_svg_pdf_eps(fig_p, kept_removed_flagged_targets_png)
+                    
+#                     plt.close(fig_p)
+#             except Exception as e_pizza:
+#                 print(f"[Aviso] Falha ao gerar kept_removed_flagged__targets_x_bmu.png: {e_pizza}")
+
+#         except Exception as e_png:
+#             print(f"[Aviso] Falha ao gerar kept_removed_flagged.png: {e_png}")
+
+#         # ==========================================================
+#         # CSV/PDF — (RR,CC) = (bx+1, by+1) e ordenação RR↑, CC↑, Class↑
+#         # ==========================================================
+#         def ids_three_per_line(id_list):
+#             if not id_list:
+#                 return ""
+#             parts = [",".join(str(x) for x in id_list[i:i+3])
+#                      for i in range(0, len(id_list), 3)]
+#             return "\n".join(parts)
+
+#         records = []
+#         for (bx, by), sets in agg.items():
+#             ksum, rsum, fsum = _get_counts(bx, by)
+#             cls = majority_label_map.get((bx, by), '')
+#             kept_ids    = sorted(list(sets['kept']))
+#             removed_ids = sorted(list(sets['removed']))
+#             flagged_ids = sorted(list(sets['flagged']))
+#             records.append({
+#                 'Row':  bx+1,
+#                 'Col':  by+1,
+#                 'Class': str(cls),
+#                 'Kept Id':    ids_three_per_line(kept_ids),
+#                 'K.Sum':      ksum,
+#                 'Removed Id': ids_three_per_line(removed_ids),
+#                 'R.Sum':      rsum,
+#                 'Flagged Id': ids_three_per_line(flagged_ids),
+#                 'F.Sum':      fsum,
+#             })
+
+#         records = sorted(records, key=lambda r: (r['Row'], r['Col'], r['Class']))
+
+#         # ---------------- CSV ----------------
+#         try:
+#             kept_removed_flagged_csv = os.path.join(
+#                 out03, f'{prefix}.krf.csv'
+#             )
+#             records_csv = records.copy()
+#             totals_row = {
+#                 'Row':'','Col':'','Class':'TOTALS',
+#                 'Kept Id':'','K.Sum':sum_kept,
+#                 'Removed Id':'','R.Sum':sum_removed,
+#                 'Flagged Id':'','F.Sum':sum_flagged
+#             }
+#             df_csv = pd.DataFrame(records_csv + [totals_row])
+
+#             def _mk_rrcc(row):
+#                 r, c = row.get('Row', ''), row.get('Col', '')
+#                 try:
+#                     r_i = int(r); c_i = int(c)
+#                     return f"({r_i:02d},{c_i:02d})"
+#                 except Exception:
+#                     return ""
+#             df_csv['RR,CC'] = df_csv.apply(_mk_rrcc, axis=1)
+
+#             cols_out = ['RR,CC','Class','Kept Id','K.Sum','Removed Id','R.Sum','Flagged Id','F.Sum']
+#             df_csv = df_csv.reindex(columns=cols_out)
+
+#             df_csv.to_csv(kept_removed_flagged_csv, index=False, encoding='utf-8-sig')
+#         except Exception as e_csv:
+#             print(f"[Aviso] Falha ao gerar kept_removed_flagged.csv: {e_csv}")
+
+#         # ---------------- PDF ----------------
+#         try:
+#             kept_removed_flagged_pdf = os.path.join(
+#                 out03, f'{prefix}.krf.pdf'
+#             )
+
+#             headers_pdf = ['RR,CC','Class','Kept Id','K.Sum','Removed Id','R.Sum','Flagged Id','F.Sum']
+#             w_fixed = {'RR,CC':0.10,'Class':0.12,'K.Sum':0.07,'R.Sum':0.07,'F.Sum':0.07}
+#             w_dynamic_total = 1 - sum(w_fixed.values())
+#             w_dyn = w_dynamic_total / 3.0
+#             col_widths = [w_fixed['RR,CC'], w_fixed['Class'],
+#                           w_dyn, w_fixed['K.Sum'],
+#                           w_dyn, w_fixed['R.Sum'],
+#                           w_dyn, w_fixed['F.Sum']]
+
+#             font_size=8; base_row_h=0.045; header_h=0.06; max_units=1.0
+
+#             df_for_pdf = pd.DataFrame(records)
+#             def _mk_rrcc_pdf(row):
+#                 try:
+#                     return f"({int(row['Row']):02d},{int(row['Col']):02d})"
+#                 except Exception:
+#                     return ""
+#             if len(df_for_pdf)>0:
+#                 df_for_pdf['RR,CC'] = df_for_pdf.apply(_mk_rrcc_pdf, axis=1)
+#                 df_for_pdf = df_for_pdf[['RR,CC','Class','Kept Id','K.Sum','Removed Id','R.Sum','Flagged Id','F.Sum']]
+#             else:
+#                 df_for_pdf = pd.DataFrame(columns=headers_pdf)
+
+#             def split_lines(s):
+#                 if not isinstance(s, str) or not s:
+#                     return [""]
+#                 return s.split("\n")
+
+#             expanded_rows = []
+#             max_units = 1.0
+#             base_row_h = 0.045
+#             header_h = 0.06
+#             max_lines_per_row = max(1, int((max_units - header_h) / base_row_h))
+
+#             for _, r in df_for_pdf.iterrows():
+#                 kept_lines    = split_lines(r['Kept Id'])
+#                 removed_lines = split_lines(r['Removed Id'])
+#                 flagged_lines = split_lines(r['Flagged Id'])
+#                 total_lines = max(len(kept_lines), len(removed_lines), len(flagged_lines))
+#                 start = 0
+#                 first = True
+#                 while start < total_lines:
+#                     end = start + max_lines_per_row
+#                     blk_kept    = "\n".join(kept_lines[start:end]) if start < len(kept_lines) else ""
+#                     blk_removed = "\n".join(removed_lines[start:end]) if start < len(removed_lines) else ""
+#                     blk_flagged = "\n".join(flagged_lines[start:end]) if start < len(flagged_lines) else ""
+#                     expanded_rows.append({
+#                         'RR,CC': r['RR,CC'] if first else '',
+#                         'Class': r['Class'] if first else '',
+#                         'Kept Id': blk_kept,
+#                         'K.Sum': r['K.Sum'] if first else '',
+#                         'Removed Id': blk_removed,
+#                         'R.Sum': r['R.Sum'] if first else '',
+#                         'Flagged Id': blk_flagged,
+#                         'F.Sum': r['F.Sum'] if first else '',
+#                         '_lines': max(
+#                             (blk_kept.count("\n")+1) if blk_kept else 1,
+#                             (blk_removed.count("\n")+1) if blk_removed else 1,
+#                             (blk_flagged.count("\n")+1) if blk_flagged else 1,
+#                         )
+#                     })
+#                     first = False
+#                     start = end
+
+#             def paginate(recs, start):
+#                 used = header_h
+#                 i = start
+#                 heights = []
+#                 while i < len(recs):
+#                     h = base_row_h * max(1, recs[i]['_lines'])
+#                     if used + h > max_units:
+#                         break
+#                     heights.append(h)
+#                     used += h
+#                     i += 1
+#                 if i == start and start < len(recs):
+#                     heights = [base_row_h * max(1, recs[start]['_lines'])]
+#                     i = start + 1
+#                 return i, heights
+
+#             with PdfPages(kept_removed_flagged_pdf) as pp:
+#                 # usa o PNG .krf (com status) na primeira página do PDF
+#                 if os.path.exists(kept_removed_flagged_png):
+#                     # fig1 = plt.figure(figsize=(12,9))
+#                     # ax1 = fig1.add_subplot(111); ax1.axis('off')
+#                     # ax1.imshow(plt.imread(kept_removed_flagged_png))
+                    
+#                     fig1 = plt.figure(figsize=(12,9))
+#                     fig1.patch.set_facecolor('white')                    
+#                     ax1 = fig1.add_subplot(111)
+#                     ax1.set_facecolor('white')
+#                     ax1.axis('off')
+#                     ax1.imshow(plt.imread(kept_removed_flagged_png))
+                                        
+#                     # pp.savefig(fig1, bbox_inches='tight')
+#                     # pp.savefig(fig1, bbox_inches='tight', dpi=ARTWORK_DPI)
+#                     pp.savefig(fig1, bbox_inches='tight')
+                    
+#                     plt.close(fig1)
+
+#                 idx = 0
+#                 while idx < len(expanded_rows):
+#                     end, heights = paginate(expanded_rows, idx)
+#                     chunk = expanded_rows[idx:end]
+#                     rows_pdf = [[str(rec[h]) for h in headers_pdf] for rec in chunk]
+
+#                     # figp = plt.figure(figsize=(8.27,11.69))
+#                     # axp = figp.add_subplot(111); axp.axis('off')
+                    
+#                     figp = plt.figure(figsize=(8.27,11.69))
+#                     figp.patch.set_facecolor('white')                    
+#                     axp = figp.add_subplot(111)
+#                     axp.set_facecolor('white')
+#                     axp.axis('off')                    
+                    
+#                     tbl = axp.table(cellText=rows_pdf, colLabels=headers_pdf,
+#                                     colWidths=col_widths, cellLoc='left', loc='upper left')
+#                     tbl.auto_set_font_size(False); tbl.set_fontsize(font_size)
+
+#                     ncols = len(headers_pdf)
+#                     for c in range(ncols):
+#                         if (0,c) in tbl._cells:
+#                             tbl._cells[(0,c)].set_height(header_h)
+#                     for r_i, rh in enumerate(heights, start=1):
+#                         for c in range(ncols):
+#                             if (r_i,c) in tbl._cells:
+#                                 cell = tbl._cells[(r_i,c)]
+#                                 cell.set_height(rh)
+#                                 cell.set_text_props(va='center', ha='left', fontsize=font_size)
+
+#                     # pp.savefig(figp, bbox_inches='tight')
+#                     # pp.savefig(figp, bbox_inches='tight', dpi=ARTWORK_DPI)
+#                     pp.savefig(figp, bbox_inches='tight')
+                    
+#                     plt.close(figp)
+#                     idx = end
+
+#                 # figt = plt.figure(figsize=(8.27,3))
+#                 # axt = figt.add_subplot(111); axt.axis('off')
+                
+#                 figt = plt.figure(figsize=(8.27,3))
+#                 figt.patch.set_facecolor('white')                
+#                 axt = figt.add_subplot(111)
+#                 axt.set_facecolor('white')
+#                 axt.axis('off')    
+                
+                
+#                 totals = ['', 'TOTALS', '', str(sum_kept), '', str(sum_removed), '', str(sum_flagged)]
+#                 tblt = axt.table(cellText=[totals], colLabels=headers_pdf,
+#                                  colWidths=col_widths, cellLoc='left', loc='upper left')
+#                 tblt.auto_set_font_size(False); tblt.set_fontsize(10)
+#                 for c in range(len(headers_pdf)):
+#                     if (0,c) in tblt._cells:
+#                         tblt._cells[(0,c)].set_height(0.06)
+#                 # pp.savefig(figt, bbox_inches='tight')
+#                 # pp.savefig(figt, bbox_inches='tight', dpi=ARTWORK_DPI)
+#                 pp.savefig(figt, bbox_inches='tight')
+#                 plt.close(figt)
+#         except Exception as e_pdf:
+#             print(f"[Aviso] Falha ao gerar kept_removed_flagged.pdf: {e_pdf}")
+
+#         # ==========================================================
+#         # >>> RESTAURAÇÃO DOS ARQUIVOS NECESSÁRIOS PARA AS PRÓXIMAS ETAPAS
+#         # ==========================================================
+#         try:
+#             kept_positions = df_res[df_res.action != 'removed'].pos.values
+#             new_csv = os.path.join(data_dir, f'data_{it}.csv')
+#             df_data.iloc[kept_positions].to_csv(new_csv, index=False)
+
+#             total_before_data = len(df_data)
+#             total_after_data  = len(kept_positions)
+#             total_excluded    = int((df_res.action=='removed').sum())
+
+#             summary_df = pd.DataFrame([{
+#                 'total_before_exclusion': total_before_data,
+#                 'total_after_exclusion':  total_after_data,
+#                 'total_excluded':         total_excluded
+#             }])
+#             gen_path = os.path.join(data_dir, f'data_{it-1}_to_{it}_general_summary.csv')
+#             summary_df.to_csv(gen_path, index=False)
+
+#             grp = df_res.merge(df_data[[key, cat_col]], left_on='pos', right_index=True)
+#             rows_cat = []
+#             for cat, sub in grp.groupby(cat_col):
+#                 tot   = len(sub)
+#                 kept  = int((sub.action=='kept').sum())
+#                 rem   = int((sub.action=='removed').sum())
+#                 flag  = int((sub.action=='flagged').sum())
+#                 rows_cat.append({
+#                     cat_col:        cat,
+#                     'total':        tot,
+#                     'kept (qt)':    kept,
+#                     'kept (%)':     round(kept/tot*100,2) if tot>0 else 0.0,
+#                     'removed (qt)': rem,
+#                     'removed (%)':  round(rem/tot*100,2) if tot>0 else 0.0,
+#                     'flagged (qt)': flag,
+#                     'flagged (%)':  round(flag/tot*100,2) if tot>0 else 0.0,
+#                 })
+#             rows_cat.append({
+#                 cat_col:        'ALL',
+#                 'total':        total_before_data,
+#                 'kept (qt)':    int((df_res.action=='kept').sum()),
+#                 'kept (%)':     round(int((df_res.action=='kept').sum())/max(total_before_data,1)*100,2),
+#                 'removed (qt)': total_excluded,
+#                 'removed (%)':  round(total_excluded/max(total_before_data,1)*100,2),
+#                 'flagged (qt)': int((df_res.action=='flagged').sum()),
+#                 'flagged (%)':  round(int((df_res.action=='flagged').sum())/max(total_before_data,1)*100,2),
+#             })
+#             cat_df = pd.DataFrame(rows_cat)
+#             cat_path = os.path.join(data_dir, f'data_{it-1}_to_{it}_categorized_summary.csv')
+#             cat_df.to_csv(cat_path, index=False)
+
+#             # fig_s, ax_s = plt.subplots(figsize=(12, 0.5 + 0.4*len(cat_df)))
+#             # ax_s.axis('off')
+            
+
+#             fig_s, ax_s = plt.subplots(figsize=(12, 0.5 + 0.4*len(cat_df)))
+#             fig_s.patch.set_facecolor('white')
+#             ax_s.set_facecolor('white')
+#             ax_s.axis('off')            
+            
+            
+#             timestamp = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
+#             title = f"Project {proj}. Step {it}. Executed on {timestamp}"
+#             plt.title(title, fontsize=14, loc='center')
+#             ncols_cat = len(cat_df.columns)
+#             col_widths_cat = [0.2] + [0.1]*(ncols_cat-1)
+#             tbl_s = ax_s.table(cellText=cat_df.values, colLabels=cat_df.columns,
+#                                colWidths=col_widths_cat, loc='center', cellLoc='center')
+#             tbl_s.auto_set_font_size(False)
+#             tbl_s.set_fontsize(12)
+#             png_sum = os.path.join(data_dir, f'data_{it-1}_to_{it}_categorized_summary.png')
+#             plt.tight_layout()
+#             # fig_s.savefig(png_sum, dpi=100, bbox_inches='tight')
+#             # fig_s.savefig(png_sum, dpi=ARTWORK_DPI, bbox_inches='tight', pil_kwargs={"dpi": (ARTWORK_DPI, ARTWORK_DPI)})
+#             save_png_svg_pdf_eps(fig_s, png_sum)
+#             plt.close(fig_s)
+
+#             before_counts = df_data[cat_col].value_counts()
+#             after_counts  = df_data.iloc[kept_positions][cat_col].value_counts()
+#             classes_rep   = sorted(set(before_counts.index).union(set(after_counts.index)))
+
+#             rep = []
+#             for c in classes_rep:
+#                 b = before_counts.get(c, 0) / max(total_before_data, 1) * 100
+#                 a = after_counts.get(c, 0)  / max(total_after_data,  1) * 100
+#                 rep.append([c, round(b, 2), round(a, 2)])
+
+#             rep_df = pd.DataFrame(rep, columns=['class', 'Before (%)', 'After (%)'])
+            
+#             # fig_r, ax_r = plt.subplots(figsize=(10, 0.5 + 0.4*len(rep_df)))
+#             # ax_r.axis('off')
+            
+#             fig_r, ax_r = plt.subplots(figsize=(10, 0.5 + 0.4*len(rep_df)))
+#             fig_r.patch.set_facecolor('white')
+#             ax_r.set_facecolor('white')
+#             ax_r.axis('off')
+            
+#             rep_title = f"Project {proj}. Categorized representativeness, after step {it}. Executed on {timestamp}"
+#             plt.title(rep_title, fontsize=14, loc='center')
+#             tbl_r = ax_r.table(cellText=rep_df.values, colLabels=rep_df.columns,
+#                                colWidths=[0.2, 0.1, 0.1], loc='center', cellLoc='center')
+#             tbl_r.auto_set_font_size(False)
+#             tbl_r.set_fontsize(12)
+#             rep_path = os.path.join(data_dir, f'data_{it-1}_to_{it}_categorized_representativeness.png')
+#             plt.tight_layout()
+#             # fig_r.savefig(rep_path, dpi=100, bbox_inches='tight')
+#             # fig_r.savefig(rep_path, dpi=ARTWORK_DPI, bbox_inches='tight', pil_kwargs={"dpi": (ARTWORK_DPI, ARTWORK_DPI)})
+#             save_png_svg_pdf_eps(fig_r, rep_path)
+#             plt.close(fig_r)
+
+#         except Exception as e_restored:
+#             print(f"[Aviso] Falha ao gerar artefatos restaurados: {e_restored}")
+
+#         # ==================== RESULTADO ====================
+#         result = {
+#             "message":"Step 03 concluído com sucesso.",
+#             "total":total_before,
+#             "sum_kept":sum_kept,
+#             "sum_removed":sum_removed,
+#             "sum_flagged":sum_flagged
+#         }
+#         return Response(json.dumps(result,indent=2,ensure_ascii=False),
+#                         mimetype='application/json'),200
+
+#     except Exception as e:
+#         err={"message":f"Erro interno: {e}"}
+#         return Response(json.dumps(err,indent=2,ensure_ascii=False),
+#                         mimetype='application/json'),500
 
 
 
@@ -15323,12 +18011,21 @@ def step_04__evaluate_results_after_exclude():
 #   -F "rd_ss_csv_folder_path=/home/alex/Downloads/github/improving_crop_identification__rest/projs/pampa.25x50/00_preprocessing/original_data/" \
 #   -F "it_csv_folder_path=/home/alex/Downloads/github/improving_crop_identification__rest/projs/pampa.25x50/12_method/data/"
 #############################################################################################################
+
+
+#############################################################################################################
+###################### CÓDIGO USADO PARA GERAR Figure_4.png
+#############################################################################################################
 # curl -X POST http://127.0.0.1:5000/statistical_summary \
 #   -F "project_name=lorena.60x60" \
 #   -F "rotate_titles_in_the_matrix_of_confusion=true" \
 #   -F "category_column=label" \
 #   -F "rd_ss_csv_folder_path=/home/alex/Downloads/github/SITS-sample-quality/api/v.0.0.1/projs/lorena.60x60/00_preprocessing/original_data/" \
 #   -F "it_csv_folder_path=/home/alex/Downloads/github/SITS-sample-quality/api/v.0.0.1/projs/lorena.60x60/12_method/data/"
+#############################################################################################################
+
+
+
 #############################################################################################################
 # curl -X POST http://127.0.0.1:5000/statistical_summary \
 #   -F "project_name=pampa.25x50" \
@@ -15438,6 +18135,16 @@ def statistical_summary():
         rd_ss_csv_folder_path = (request.form.get('rd_ss_csv_folder_path') or '').strip()
         lof_csv_folder_path   = (request.form.get('lof_csv_folder_path')   or '').strip()
         it_csv_folder_path    = (request.form.get('it_csv_folder_path')    or '').strip()
+                
+        
+        files_raw = request.form.get('files', None)
+        
+        def _save_artwork(fig_obj, png_output_path):
+            if files_raw is None or str(files_raw).strip() == '':
+                save_png_svg_pdf_eps(fig_obj, png_output_path)
+            else:
+                save_png_svg_pdf_eps(fig_obj, png_output_path, files=files_raw)        
+                
 
         # quando vazio, ocultar LOF de TODAS as saídas deste endpoint
         SHOW_LOF = bool(lof_csv_folder_path)
@@ -16175,7 +18882,7 @@ def statistical_summary():
                 pass
 
             plt.tight_layout(rect=[0, 0, 0.80, 1])
-            plt.savefig(perf_png_path)
+            _save_artwork(plt.gcf(), perf_png_path)
             plt.close()
 
             try:
@@ -16212,7 +18919,7 @@ def statistical_summary():
                 )
 
                 plt.tight_layout(rect=[0, 0.12, 1, 1])
-                plt.savefig(perf_small_png_path, dpi=300)
+                _save_artwork(plt.gcf(), perf_small_png_path)
                 plt.close()
             except Exception:
                 pass
@@ -16220,13 +18927,13 @@ def statistical_summary():
             plt.figure(figsize=(20, 5))
             plt.text(0.5, 0.5, 'Nenhum dado de Accuracy Mean encontrado', ha='center', va='center')
             plt.axis('off')
-            plt.savefig(perf_png_path)
+            _save_artwork(plt.gcf(), perf_png_path)            
             plt.close()
 
             plt.figure(figsize=(8, 4))
             plt.text(0.5, 0.5, 'Nenhum dado de Accuracy Mean encontrado', ha='center', va='center')
             plt.axis('off')
-            plt.savefig(perf_small_png_path, dpi=300)
+            _save_artwork(plt.gcf(), perf_small_png_path)
             plt.close()
 
 
@@ -17018,14 +19725,48 @@ def statistical_summary():
             idx_all = labels.index('ALL')
             handles = [handles[idx_all]] + [h for i, h in enumerate(handles) if i != idx_all]
             labels = ['ALL'] + [l for l in labels if l != 'ALL']
-
-        fig.legend(
-            handles, labels,
+        
+        ##########################################################################################
+        
+        legend_ax = fig.add_axes([0.60, 0.26, 0.18, 0.7])
+        legend_ax.axis('off')
+        
+        legend_ax.legend(
+            handles,
+            labels,
             loc='upper left',
-            bbox_to_anchor=(0.60, 0.96),
+            bbox_to_anchor=(0.0, 1.0),
             borderaxespad=0.,
-            title="Legend"
+            title="Legend",
+            frameon=True,
+            prop={'size': 14},
+            title_fontsize=16,
+            handlelength=3.0,
+            labelspacing=1.0
         )
+        
+        ax.set_title(
+            f"Project {proj} - Accuracy by Category (Aggregated)",
+            fontsize=20
+        )
+        
+        ax.set_xlabel(
+            "Steps",
+            fontsize=20
+        )
+        
+        ax.set_ylabel(
+            "Accuracy Mean (%)",
+            fontsize=20
+        )
+        
+        ax.tick_params(
+            axis='both',
+            labelsize=16
+        )        
+        
+        ##########################################################################################
+        
 
         table_ax = fig.add_axes([0.80, 0.25, 0.18, 0.71])
         table_ax.axis('off')
@@ -17091,9 +19832,9 @@ def statistical_summary():
         )
 
         fig.text(
-            0.03, 0.10, legend_text,
+            0.05, 0.05, legend_text,
             ha='left', va='top',
-            fontsize=9, family='monospace'
+            fontsize=10, family='monospace'
         )
 
         try:
@@ -17103,14 +19844,14 @@ def statistical_summary():
                 ax.plot(best_idx, best_val, marker='D', color='red')
                 best_text = f"Best Accuracy = {best_val:.2f}%, at {x_ticks[best_idx]}"
                 fig.text(
-                    0.5, 0.03, best_text,
+                    0.5, 0.0, best_text,
                     ha='center', va='bottom',
                     color='red', fontweight='bold', fontsize=10
                 )
         except Exception:
             pass
 
-        plt.savefig(aggregated_png_path)
+        _save_artwork(plt.gcf(), aggregated_png_path)
         plt.close()
 
         # =====================================================================
@@ -17295,7 +20036,7 @@ def statistical_summary():
                                 )
                                 fig_cm.text(0.82, 0.5, legend_text_cm, va='center', ha='left', fontsize=9)
 
-                                plt.savefig(cm_png_path, bbox_inches='tight', pad_inches=0.25)
+                                _save_artwork(plt.gcf(), cm_png_path)
                                 plt.close()
         except Exception:
             pass
@@ -17325,6 +20066,2016 @@ def statistical_summary():
 
     except Exception as e:
         return jsonify({"message": f"Erro interno: {e}"}), 500
+
+
+
+
+# @app.route('/statistical_summary', methods=['POST'])
+# def statistical_summary():
+#     """
+#     Gera estatísticas gerais, PDFs e gráficos a partir dos arquivos
+#     data_<it-1>_to_<it>_categorized_summary.csv do diretório 12_method/data.
+
+#     Parâmetros (form-data):
+#       - project_name            (obrigatório)
+#       - category_column         (opcional; default='label')
+#       - category_order          (opcional; CSV)
+
+#       # Para contagem de Samples via CSV e (também) descoberta de categorias:
+#       - rd_ss_csv_folder_path   (opcional) -> usar data.csv para:
+#           * RD e SS (contagem de Samples)
+#           * descoberta de categorias (substitui o antigo category_source_csv)
+#       - lof_csv_folder_path     (opcional) -> usar yyyymmddhhmmss_<project>_lof*.csv (mais recente).
+#                                    Se NÃO informado, LOF não aparece em nenhum arquivo gerado aqui.
+#       - it_csv_folder_path      (opcional) -> usar data_<n>.csv (It.n e It.nT)
+
+#       # Confusion matrix LaTeX:
+#       - rotate_titles_in_the_matrix_of_confusion (opcional; default=false)
+#           * false -> títulos normais
+#           * true  -> rotaciona títulos das colunas em 90° anti-horário
+#     """
+#     try:
+#         import os
+#         import re
+#         import glob
+#         import uuid
+#         import math
+#         import pandas as pd
+#         import matplotlib
+#         matplotlib.use("Agg")
+#         import matplotlib.pyplot as plt
+#         from flask import request, jsonify
+#         from reportlab.platypus import (
+#             SimpleDocTemplate, Table, TableStyle, Spacer, Paragraph,
+#             Image as RLImage, PageBreak, KeepInFrame
+#         )
+#         from reportlab.lib import colors
+#         from reportlab.lib.pagesizes import letter, A4
+#         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+#         from reportlab.pdfbase import pdfmetrics
+#         from reportlab.lib.units import inch
+#         from reportlab.lib.enums import TA_LEFT, TA_CENTER
+#         from PIL import Image as PILImage
+#         from pdfrw import PdfReader, PdfWriter
+#         from xml.sax.saxutils import escape as _xml_escape
+#         import numpy as np
+#         from matplotlib.colors import LinearSegmentedColormap, Normalize
+
+#         # ------------------ helper: Turbo -> Tuned (preserva case) ------------------
+#         def _turbo_to_tuned_preserve_case(text: str) -> str:
+#             if text is None:
+#                 return text
+
+#             def repl(m):
+#                 w = m.group(0)
+#                 base = "tuned"  # mesmo tamanho de "turbo"
+#                 # casos comuns
+#                 if w.isupper():
+#                     return base.upper()
+#                 if w.islower():
+#                     return base
+#                 if (len(w) == 5) and w[0].isupper() and w[1:].islower():
+#                     return base.capitalize()
+#                 # caso misto: preserva case por caractere
+#                 out = []
+#                 for i, ch in enumerate(w):
+#                     out.append(base[i].upper() if ch.isupper() else base[i])
+#                 return "".join(out)
+
+#             return re.sub(r"turbo", repl, str(text), flags=re.I)
+
+#         # ------------------ 1) parâmetros ------------------
+#         if 'project_name' not in request.form:
+#             return jsonify({"message": "Parâmetro 'project_name' ausente."}), 400
+#         proj = request.form['project_name']
+
+#         cat_col = (request.form.get('category_column') or 'label').strip()
+#         explicit_order_csv = (request.form.get('category_order') or '').strip()
+
+#         rd_ss_csv_folder_path = (request.form.get('rd_ss_csv_folder_path') or '').strip()
+#         lof_csv_folder_path   = (request.form.get('lof_csv_folder_path')   or '').strip()
+#         it_csv_folder_path    = (request.form.get('it_csv_folder_path')    or '').strip()
+
+#         # quando vazio, ocultar LOF de TODAS as saídas deste endpoint
+#         SHOW_LOF = bool(lof_csv_folder_path)
+
+#         # ------------------ 2) saída ------------------
+#         base = os.path.join('.', 'projs', proj, '13_statistical_summary')
+#         os.makedirs(base, exist_ok=True)
+
+#         # ------------------ 3) entrada ------------------
+#         data_dir_12 = os.path.join('.', 'projs', proj, '12_method', 'data')
+#         pattern = os.path.join(data_dir_12, 'data_*_to_*_categorized_summary.csv')
+#         files = glob.glob(pattern)
+#         if not files:
+#             return jsonify({"message": "Nenhum arquivo categorized_summary encontrado."}), 404
+
+#         # ------------------ 4) concat ------------------
+#         dfs = []
+#         for path in files:
+#             fname = os.path.basename(path)
+#             try:
+#                 parts = fname.split('_to_')
+#                 it_str = parts[1].split('_')[0]
+#                 it = int(it_str)
+#             except Exception:
+#                 continue
+#             df = pd.read_csv(path)
+#             df.insert(0, 'iteration_number', it)
+#             dfs.append(df)
+#         if not dfs:
+#             return jsonify({"message": "Nenhum arquivo válido para concatenação."}), 404
+
+#         all_df = pd.concat(dfs, ignore_index=True)
+
+#         # ------------------ 5) coluna de categoria ------------------
+#         if cat_col not in all_df.columns:
+#             return jsonify({
+#                 "message": f"Coluna de categoria '{cat_col}' não encontrada. Colunas disponíveis: {list(all_df.columns)}"
+#             }), 400
+
+#         # ------------------ helpers ------------------
+#         def normalize_all(v: str) -> str:
+#             s = str(v).strip()
+#             return 'ALL' if s.upper() == 'ALL' else s
+
+#         def sort_alpha_with_all_last(values_iterable):
+#             vals = [normalize_all(v) for v in values_iterable if pd.notna(v)]
+#             has_all = any(v == 'ALL' for v in vals)
+#             base_vals = [v for v in vals if v != 'ALL']
+#             base_vals_sorted = sorted(base_vals, key=str.casefold)
+#             return base_vals_sorted + (['ALL'] if has_all else [])
+
+#         def _norm_step(s: str) -> str:
+#             return re.sub(r'\s+', ' ', str(s).strip().lower())
+
+#         # ------------------ 6) categorias (UNIÃO) ------------------
+#         present_labels = list(pd.unique(all_df[cat_col].astype(str).map(normalize_all)))
+
+#         explicit_labels = []
+#         if explicit_order_csv:
+#             explicit_labels = [normalize_all(x) for x in explicit_order_csv.split(',') if x.strip()]
+
+#         source_labels = []
+#         if rd_ss_csv_folder_path:
+#             src_csv = os.path.join(rd_ss_csv_folder_path, 'data.csv')
+#             if os.path.isfile(src_csv):
+#                 try:
+#                     src = pd.read_csv(src_csv)
+#                     if cat_col in src.columns:
+#                         source_labels = list(pd.unique(src[cat_col].astype(str).map(normalize_all)))
+#                 except Exception:
+#                     pass
+
+#         union_set = set(present_labels) | set(source_labels) | set(explicit_labels)
+#         if explicit_labels:
+#             exp_no_all = [x for x in explicit_labels if x != 'ALL']
+#             exp_has_all = any(x == 'ALL' for x in explicit_labels)
+#             missing = sorted([x for x in union_set if x not in explicit_labels and x != 'ALL'], key=str.casefold)
+#             categories = exp_no_all + missing + (['ALL'] if ('ALL' in union_set) else [])
+#             if exp_has_all and 'ALL' not in categories:
+#                 categories.append('ALL')
+#         else:
+#             categories = sort_alpha_with_all_last(union_set)
+
+#         all_df[cat_col] = all_df[cat_col].astype(str).map(normalize_all)
+#         all_df[cat_col] = pd.Categorical(all_df[cat_col], categories=categories, ordered=True)
+
+#         # ------------------ 7) categorized_summary.csv ------------------
+#         all_df.sort_values(by=['iteration_number', cat_col], inplace=True)
+#         all_df.reset_index(drop=True, inplace=True)
+#         categorized_csv = os.path.join(base, 'categorized_summary.csv')
+#         all_df.to_csv(categorized_csv, index=False)
+
+#         iteration_numbers = sorted(map(int, pd.unique(all_df['iteration_number'])))
+
+#         # ------------------ 8) totals_summary.csv ------------------
+#         mask_all = all_df[cat_col].astype(str) == 'ALL'
+#         if not mask_all.any():
+#             return jsonify({"message": "Nenhuma linha 'ALL' encontrada para compor o totals_summary."}), 400
+
+#         totals_df = all_df[mask_all].copy()
+#         totals_df = totals_df.drop(columns=[cat_col], errors='ignore')
+#         totals_df.sort_values(by='iteration_number', inplace=True)
+#         totals_df.reset_index(drop=True, inplace=True)
+
+#         totals_csv = os.path.join(base, 'totals_summary.csv')
+#         totals_df.to_csv(totals_csv, index=False)
+
+#         # ------------------ 9) totals_summary.pdf ------------------
+#         from reportlab.lib.pagesizes import letter as _LETTER
+#         totals_pdf_path = os.path.join(base, 'totals_summary.pdf')
+#         doc_totals = SimpleDocTemplate(totals_pdf_path, pagesize=_LETTER)
+#         styles = getSampleStyleSheet()
+#         story_totals = []
+#         story_totals.append(Paragraph("Totals Summary", styles['Heading2']))
+#         story_totals.append(Spacer(1, 12))
+
+#         col_headers = [
+#             'Interaction Number',
+#             'Total',
+#             'Kept (qt)',
+#             'Kept (%)',
+#             'Removed (qt)',
+#             'Removed (%)',
+#             'Flagged (qt)',
+#             'Flagged (%)'
+#         ]
+#         table_data = [col_headers]
+
+#         required_cols = ['iteration_number', 'total', 'kept (qt)', 'kept (%)',
+#                          'removed (qt)', 'removed (%)', 'flagged (qt)', 'flagged (%)']
+#         missing = [c for c in required_cols if c not in totals_df.columns]
+#         if missing:
+#             return jsonify({"message": f"Colunas ausentes em totals_summary: {missing}"}), 400
+
+#         for _, row in totals_df.iterrows():
+#             table_data.append([
+#                 int(row['iteration_number']),
+#                 int(row['total']),
+#                 int(row['kept (qt)']),
+#                 f"{float(row['kept (%)']):.2f}",
+#                 int(row['removed (qt)']),
+#                 f"{float(row['removed (%)']):.2f}",
+#                 int(row['flagged (qt)']),
+#                 f"{float(row['flagged (%)']):.2f}",
+#             ])
+
+#         page_width = _LETTER[0] - 2 * 36
+#         first_col = page_width * 0.20
+#         other_col = (page_width - first_col) / (len(col_headers) - 1)
+#         col_widths = [first_col] + [other_col] * (len(col_headers) - 1)
+
+#         tbl = Table(table_data, colWidths=col_widths, repeatRows=1)
+#         tbl.setStyle(TableStyle([
+#             ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+#             ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+#             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+#             ('ALIGN', (0, 1), (-1, -1), 'CENTER'),
+#             ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+#             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+#         ]))
+#         story_totals.append(tbl)
+#         doc_totals.build(story_totals)
+
+#         # ------------------ 10) clusters.pdf ------------------
+#         clusters_pdf_path = os.path.join(base, 'clusters.pdf')
+#         doc_clusters = SimpleDocTemplate(clusters_pdf_path, pagesize=_LETTER)
+#         story_clusters = []
+#         for idx, it in enumerate(iteration_numbers):
+#             story_clusters.append(Paragraph(f"Cluster formed at interaction number: {it}", styles['Heading2']))
+#             story_clusters.append(Spacer(1, 12))
+#             img_path = os.path.join('.', 'projs', proj, '12_method', 'step_02', f'cluster_{it}', 'cluster.png')
+#             if os.path.isfile(img_path):
+#                 pil_img = PILImage.open(img_path)
+#                 orig_w, orig_h = pil_img.size
+#                 max_width = _LETTER[0] - 2 * inch
+#                 aspect = orig_h / orig_w
+#                 calc_height = max_width * aspect
+#                 img = RLImage(img_path, width=max_width, height=calc_height)
+#                 story_clusters.append(img)
+#             else:
+#                 story_clusters.append(Paragraph(f"Imagem não encontrada: {img_path}", styles['Normal']))
+#             if idx < len(iteration_numbers) - 1:
+#                 story_clusters.append(PageBreak())
+#         doc_clusters.build(story_clusters)
+
+        
+        
+#         # ------------------ 11) concatenated_results.txt ------------------
+#         concatenated_txt_path = os.path.join(base, 'concatenated_results.txt')
+#         with open(concatenated_txt_path, 'w', encoding='utf-8') as fout:
+#             rd_txt = os.path.join('.', 'projs', proj, '00_preprocessing', 'evaluate_results_on_original_data', 'results.txt')
+#             if os.path.isfile(rd_txt):
+#                 fout.write(
+#                     "\n\n"
+#                     "##################################################################\n"
+#                     "########  Results on Raw Data - start ########\n"
+#                     "##################################################################\n\n"
+#                 )
+#                 with open(rd_txt, 'r', encoding='utf-8') as fin_rd:
+#                     fout.write(fin_rd.read())
+#                 fout.write(
+#                     "\n\n"
+#                     "##################################################################\n"
+#                     "########  Results on Raw Data - end ########\n"
+#                     "##################################################################\n\n"
+#                 )
+        
+#             std_txt  = os.path.join('.', 'projs', proj, '02_evaluate_results_after_standard_scaler', 'results.txt')
+#             lof_txt  = os.path.join('.', 'projs', proj, '04_evaluate_results_after_lof', 'results.txt')
+#             clip_txt = os.path.join('.', 'projs', proj, '06_evaluate_results_after_optional_clipping', 'results.txt')
+        
+#             if os.path.isfile(std_txt):
+#                 fout.write(
+#                     "\n\n"
+#                     "##################################################################\n"
+#                     "########  Results After Standard Scaler - start ########\n"
+#                     "##################################################################\n\n"
+#                 )
+#                 with open(std_txt, 'r', encoding='utf-8') as fin_std:
+#                     fout.write(fin_std.read())
+#                 fout.write(
+#                     "\n\n"
+#                     "##################################################################\n"
+#                     "########  Results After Standard Scaler - end ########\n"
+#                     "##################################################################\n\n"
+#                 )
+        
+#             if SHOW_LOF and os.path.isfile(lof_txt):
+#                 fout.write(
+#                     "\n\n"
+#                     "##################################################################\n"
+#                     "########  Results After LOF - start ########\n"
+#                     "##################################################################\n\n"
+#                 )
+#                 with open(lof_txt, 'r', encoding='utf-8') as fin_lof:
+#                     fout.write(fin_lof.read())
+#                 fout.write(
+#                     "\n\n"
+#                     "##################################################################\n"
+#                     "########  Results After LOF - end ########\n"
+#                     "##################################################################\n\n"
+#                 )
+        
+#             if os.path.isfile(clip_txt):
+#                 fout.write(
+#                     "\n\n"
+#                     "##################################################################\n"
+#                     "########  Results After Optional Clipping - start ########\n"
+#                     "##################################################################\n\n"
+#                 )
+#                 with open(clip_txt, 'r', encoding='utf-8') as fin_clip:
+#                     fout.write(fin_clip.read())
+#                 fout.write(
+#                     "\n\n"
+#                     "##################################################################\n"
+#                     "########  Results After Optional Clipping - end ########\n"
+#                     "##################################################################\n\n"
+#                 )
+        
+#             for it in iteration_numbers:
+#                 header_line = (
+#                     "\n\n"
+#                     "##################################################################\n"
+#                     f"########  Results for iteration number {it} - start ########\n"
+#                     "##################################################################\n\n"
+#                 )
+#                 fout.write(header_line)
+        
+#                 results_txt_path = os.path.join('.', 'projs', proj, '12_method', 'step_04', f'results_{it}', 'results.txt')
+#                 if os.path.isfile(results_txt_path):
+#                     with open(results_txt_path, 'r', encoding='utf-8') as fin:
+#                         fout.write(fin.read())
+#                 else:
+#                     fout.write(f"[Arquivo não encontrado: {results_txt_path}]\n")
+        
+#                 footer_line = (
+#                     "\n\n"
+#                     "##################################################################\n"
+#                     f"########  Results for iteration number {it} - end ########\n"
+#                     "##################################################################\n\n"
+#                 )
+#                 fout.write(footer_line)
+        
+#                 # (arquivo tuned fica em results_<it>_turbo, mas o TEXTO deve falar TUNED)
+#                 results_txt_tuned = os.path.join('.', 'projs', proj, '12_method', 'step_04', f'results_{it}_turbo', 'results.txt')
+#                 if os.path.isfile(results_txt_tuned):
+#                     tuned_header = (
+#                         "\n\n"
+#                         "##################################################################\n"
+#                         f"########  Results for iteration number {it} (TUNED) - start ########\n"
+#                         "##################################################################\n\n"
+#                     )
+#                     fout.write(tuned_header)
+#                     with open(results_txt_tuned, 'r', encoding='utf-8') as fin_tuned:
+#                         fout.write(fin_tuned.read())
+#                     tuned_footer = (
+#                         "\n\n"
+#                         "##################################################################\n"
+#                         f"########  Results for iteration number {it} (TUNED) - end ########\n"
+#                         "##################################################################\n\n"
+#                     )
+#                     fout.write(tuned_footer)
+                
+                
+        
+
+#         # ------------------ 11.6) Samples por CSV ------------------
+#         def _count_rows_csv(csv_path: str):
+#             try:
+#                 if os.path.isfile(csv_path):
+#                     df = pd.read_csv(csv_path)
+#                     return len(df)
+#             except Exception:
+#                 return None
+#             return None
+
+#         def _samples_from_csv_sources(project_name: str, iters: list[int]) -> dict:
+#             smap = {}
+
+#             if rd_ss_csv_folder_path:
+#                 rdss_csv = os.path.join(rd_ss_csv_folder_path, 'data.csv')
+#                 n = _count_rows_csv(rdss_csv)
+#                 if isinstance(n, int):
+#                     smap[_norm_step('Results on Raw Data')] = n
+#                     smap[_norm_step('Results After Standard Scaler')] = n
+
+#             if SHOW_LOF and lof_csv_folder_path:
+#                 pattern_lof = os.path.join(lof_csv_folder_path, f"*_{project_name}_lof*.csv")
+#                 lof_candidates = glob.glob(pattern_lof)
+#                 if lof_candidates:
+#                     latest = max(lof_candidates, key=lambda p: os.path.getmtime(p))
+#                     n = _count_rows_csv(latest)
+#                     if isinstance(n, int):
+#                         smap[_norm_step('Results After LOF')] = n
+
+#             it_base = it_csv_folder_path if it_csv_folder_path else os.path.join('.', 'projs', project_name, '12_method', 'data')
+#             for itn in iters:
+#                 csv_it = os.path.join(it_base, f'data_{itn}.csv')
+#                 n = _count_rows_csv(csv_it)
+#                 if isinstance(n, int):
+#                     smap[_norm_step(f'Results for iteration number {itn}')] = n
+#                     # Exibição textual agora é (TUNED), mas aceitamos também (TURBO) para compatibilidade
+#                     smap[_norm_step(f'Results for iteration number {itn} (TUNED)')] = n
+#                     smap[_norm_step(f'Results for iteration number {itn} (TURBO)')] = n
+
+#             return smap
+
+#         samples_map_csv = _samples_from_csv_sources(proj, iteration_numbers)
+
+#         # ------------------ 11.6-b) Parser dos blocos -> (Step, Samples, Acc) ------------------
+#         def parse_steps_samples_accuracy_from_concatenated(txt_path: str, totals_df_for_fallback: pd.DataFrame, smap_csv: dict):
+#             rows = []
+#             if not os.path.isfile(txt_path):
+#                 return rows
+
+#             with open(txt_path, 'r', encoding='utf-8') as f:
+#                 lines = f.readlines()
+
+#             step_start_line_re = re.compile(r"^########\s+(.*?)\s+- start ########\s*$")
+#             step_end_line_re   = re.compile(r"^########\s+(.*?)\s+- end ########\s*$")
+
+#             it_total_map = {int(r['iteration_number']): int(r['total']) for _, r in totals_df_for_fallback.iterrows()}
+#             first_total = it_total_map[sorted(it_total_map.keys())[0]] if it_total_map else None
+
+#             def _fallback_samples_for_step(step_name: str):
+#                 m_it = re.search(r'iteration number\s+(\d+)', step_name, flags=re.I)
+#                 if m_it:
+#                     itn = int(m_it.group(1))
+#                     return it_total_map.get(itn, first_total)
+#                 return first_total
+
+#             i = 0
+#             while i < len(lines):
+#                 line = lines[i].rstrip('\n')
+#                 m = step_start_line_re.match(line)
+#                 if m:
+#                     current_step = m.group(1)
+#                     samples_val = smap_csv.get(_norm_step(current_step))
+
+#                     block = []
+#                     i += 1
+#                     while i < len(lines):
+#                         l2 = lines[i].rstrip('\n')
+#                         if step_end_line_re.match(l2):
+#                             acc_val = None
+#                             for bl in block:
+#                                 if 'Accuracy Mean' in bl:
+#                                     nums = re.findall(r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?%?", bl)
+#                                     perc = None
+#                                     for tok in reversed(nums):
+#                                         if tok.endswith('%'):
+#                                             perc = float(tok.strip('%')); break
+#                                     if perc is None:
+#                                         for tok in reversed(nums):
+#                                             if not tok.endswith('%'):
+#                                                 try:
+#                                                     perc = float(tok) * 100.0
+#                                                     break
+#                                                 except Exception:
+#                                                     pass
+#                                     acc_val = perc
+#                                     break
+
+#                             if samples_val is None:
+#                                 for bl in block:
+#                                     if re.search(r'\bSamples?\b', bl, flags=re.I) or re.search(r'\bN\s*=\s*\d+', bl, flags=re.I):
+#                                         mnum = re.search(r'[-+]?\d[\d,.]*', bl)
+#                                         if mnum:
+#                                             samples_val = int(mnum.group(0).replace('.', '').replace(',', ''))
+#                                             break
+#                             if samples_val is None:
+#                                 samples_val = _fallback_samples_for_step(current_step)
+
+#                             rows.append((current_step, samples_val, acc_val))
+#                             break
+#                         else:
+#                             block.append(l2)
+#                         i += 1
+#                 i += 1
+#             return rows
+
+#         perf_rows = parse_steps_samples_accuracy_from_concatenated(
+#             os.path.join(base, 'concatenated_results.txt'),
+#             totals_df_for_fallback=totals_df,
+#             smap_csv=samples_map_csv
+#         )
+
+#         # ------------------ 11.6-c) method_performance.pdf ------------------
+#         method_perf_pdf_path = os.path.join(base, 'method_performance.pdf')
+#         try:
+#             doc_mp = SimpleDocTemplate(method_perf_pdf_path, pagesize=letter)
+#             styles = getSampleStyleSheet()
+#             centered_h2 = ParagraphStyle('CenteredH2', parent=styles['Heading2'], alignment=1)
+
+#             story_mp = []
+#             story_mp.append(Paragraph("Method Performance", centered_h2))
+#             story_mp.append(Spacer(1, 6))
+
+#             table_data_mp = [["Step", "Samples", "Removed", "Acc Mean"]]
+
+#             baseline_samples = None
+#             for _, s, _ in perf_rows:
+#                 if isinstance(s, int):
+#                     baseline_samples = s
+#                     break
+
+#             def _fmt_removed(samples: int) -> str:
+#                 if not isinstance(samples, int) or not isinstance(baseline_samples, int) or baseline_samples <= 0:
+#                     return "—"
+#                 pct = max(0.0, (1.0 - (samples / baseline_samples)) * 100.0)
+#                 return f"{pct:.2f}%"
+
+#             for step, samples, acc in perf_rows:
+#                 # ajuste textual Turbo->Tuned preservando case (sem afetar lógica)
+#                 step_disp = _turbo_to_tuned_preserve_case(step)
+
+#                 acc_disp = f"{acc:.2f}%" if isinstance(acc, (int, float)) and acc is not None else "—"
+#                 samp_disp = f"{samples:,}".replace(',', '.') if isinstance(samples, int) else "—"
+#                 removed_disp = "0.00%" if step.lower().startswith("results on raw data") else _fmt_removed(samples)
+#                 table_data_mp.append([step_disp, samp_disp, removed_disp, acc_disp])
+
+#             pg_w = letter[0] - 2 * 36
+#             col_w1 = pg_w * 0.50
+#             col_w2 = pg_w * 0.15
+#             col_w3 = pg_w * 0.15
+#             col_w4 = pg_w * 0.20
+#             tbl_mp = Table(table_data_mp, colWidths=[col_w1, col_w2, col_w3, col_w4])
+#             tbl_mp.setStyle(TableStyle([
+#                 ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+#                 ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+#                 ('ALIGN', (0, 1), (0, -1), 'LEFT'),
+#                 ('ALIGN', (1, 1), (-1, -1), 'CENTER'),
+#                 ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+#                 ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+#                 ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+#             ]))
+#             story_mp.append(tbl_mp)
+
+#             doc_mp.build(story_mp)
+#         except Exception:
+#             pass
+
+#         # ------------------ 11.6-d) method_performance.tex ------------------
+#         method_perf_tex_path = os.path.join(base, 'method_performance.tex')
+#         try:
+#             if perf_rows:
+#                 def _latex_escape(s: str) -> str:
+#                     rep = {
+#                         '\\': r'\textbackslash{}',
+#                         '&': r'\&',
+#                         '%': r'\%',
+#                         '$': r'\$',
+#                         '#': r'\#',
+#                         '_': r'\_',
+#                         '{': r'\{',
+#                         '}': r'\}',
+#                         '~': r'\textasciitilde{}',
+#                         '^': r'\textasciicircum{}',
+#                     }
+#                     out = str(s)
+#                     for k, v in rep.items():
+#                         out = out.replace(k, v)
+#                     return out
+
+#                 baseline_samples = None
+#                 for _, s, _ in perf_rows:
+#                     if isinstance(s, int):
+#                         baseline_samples = s
+#                         break
+
+#                 def _fmt_removed_raw(samples: int):
+#                     if not isinstance(samples, int) or not isinstance(baseline_samples, int) or baseline_samples <= 0:
+#                         return None
+#                     pct = max(0.0, (1.0 - (samples / baseline_samples)) * 100.0)
+#                     return f"{pct:.2f}"
+
+#                 def _build_abbrev_step_label(step_raw: str) -> str:
+#                     s = _turbo_to_tuned_preserve_case(step_raw).strip()
+#                     low = s.lower()
+#                     if low.startswith('results on raw data'):
+#                         abbr = 'RD'
+#                     elif low.startswith('results after standard scaler'):
+#                         abbr = 'SS'
+#                     elif low.startswith('results after optional clipping'):
+#                         abbr = 'OC'
+#                     else:
+#                         m = re.search(r'results for iteration number\s+(\d+)', low)
+#                         if m:
+#                             n = m.group(1)
+#                             if ('(tuned)' in low) or ('(turbo)' in low):
+#                                 abbr = f"It.{n}T"
+#                             else:
+#                                 abbr = f"It.{n}"
+#                         else:
+#                             words = re.findall(r'[A-Za-z]+', s)
+#                             abbr = ''.join(w[0].upper() for w in words[:3]) if words else 'STP'
+#                     return f"{abbr} : {s}"
+
+#                 lines = []
+#                 lines.append(r"\begin{table}[H]")
+#                 lines.append(r"\centering")
+#                 cap_proj = _latex_escape(proj)
+#                 lines.append(rf"\caption{{Method performance for project \texttt{{{cap_proj}}}.}}")
+#                 lines.append(r"\label{tab:method_performance}")
+#                 lines.append(r"\begin{tabular}{lrrr}")
+#                 lines.append(r"\hline")
+#                 lines.append(r"Abbreviation : Step & Samples & Removed & Acc Mean \\")
+#                 lines.append(r"\hline")
+
+#                 for step, samples, acc in perf_rows:
+#                     if 'results after lof' in step.strip().lower():
+#                         continue
+
+#                     step_disp = _build_abbrev_step_label(step)
+#                     step_tex = _latex_escape(step_disp)
+
+#                     samp_disp = f"{samples:,}".replace(",", ".") if isinstance(samples, int) else "—"
+#                     samp_tex = _latex_escape(samp_disp)
+
+#                     if isinstance(samples, int) and step.lower().startswith("results on raw data"):
+#                         rem_raw = "0.00"
+#                     else:
+#                         rem_raw = _fmt_removed_raw(samples)
+#                     rem_tex = "—" if rem_raw is None else (_latex_escape(rem_raw) + r"\%")
+
+#                     if isinstance(acc, (int, float)) and acc is not None:
+#                         acc_tex = _latex_escape(f"{acc:.2f}") + r"\%"
+#                     else:
+#                         acc_tex = "—"
+
+#                     lines.append(f"{step_tex} & {samp_tex} & {rem_tex} & {acc_tex} \\\\")
+
+#                 lines.append(r"\hline")
+#                 lines.append(r"\end{tabular}")
+#                 lines.append(r"\end{table}")
+
+#                 with open(method_perf_tex_path, "w", encoding="utf-8") as f_tex:
+#                     f_tex.write("\n".join(lines))
+#         except Exception:
+#             pass
+
+#         # =====================================================================
+#         # =================== 11.7) method_performance.png =====================
+#         # =====================================================================
+#         rd_txt_path  = os.path.join('.', 'projs', proj, '00_preprocessing', 'evaluate_results_on_original_data', 'results.txt')
+#         ss_txt_path  = os.path.join('.', 'projs', proj, '02_evaluate_results_after_standard_scaler', 'results.txt')
+#         lof_txt_path = os.path.join('.', 'projs', proj, '04_evaluate_results_after_lof', 'results.txt')
+
+#         def _extract_acc_mean(txt_path):
+#             if not os.path.isfile(txt_path):
+#                 return None
+#             with open(txt_path, 'r', encoding='utf-8') as f:
+#                 for line in f:
+#                     if 'Accuracy Mean' in line:
+#                         parts = line.split('|')
+#                         if len(parts) >= 3:
+#                             try:
+#                                 return float(parts[2].strip()) * 100.0
+#                             except Exception:
+#                                 return None
+#             return None
+
+#         rd_value = _extract_acc_mean(rd_txt_path)
+#         ss_value = _extract_acc_mean(ss_txt_path)
+#         lof_value = _extract_acc_mean(lof_txt_path) if SHOW_LOF else None
+
+#         final_perf = []
+#         labels_perf = []
+#         if rd_value is not None:
+#             final_perf.append(rd_value); labels_perf.append('RD')
+#         if ss_value is not None:
+#             final_perf.append(ss_value); labels_perf.append('SS')
+#         if SHOW_LOF and (lof_value is not None):
+#             final_perf.append(lof_value); labels_perf.append('LOF')
+
+#         for it in iteration_numbers:
+#             nt_path = os.path.join('.', 'projs', proj, '12_method', 'step_04', f'results_{it}', 'results.txt')
+#             val_nt = _extract_acc_mean(nt_path)
+#             if val_nt is not None:
+#                 final_perf.append(val_nt); labels_perf.append(f"It.{it}")
+
+#         for it in iteration_numbers:
+#             tb_path = os.path.join('.', 'projs', proj, '12_method', 'step_04', f'results_{it}_turbo', 'results.txt')
+#             val_t = _extract_acc_mean(tb_path)
+#             if val_t is not None:
+#                 final_perf.append(val_t); labels_perf.append(f"It.{it}T")
+
+#         perf_png_path = os.path.join(base, 'method_performance.png')
+#         perf_small_png_path = os.path.join(base, 'method_performance_small.png')
+
+#         if final_perf:
+#             x_positions = list(range(len(final_perf)))
+
+#             plt.figure(figsize=(20, 5))
+#             ax = plt.gca()
+#             ax.plot(x_positions, final_perf, marker='o', linestyle='-')
+#             ax.set_xticks(x_positions)
+#             ax.set_xticklabels(labels_perf)
+#             ax.set_title(f"Project {proj} - Accuracy Performance")
+#             ax.set_ylabel("Accuracy Mean (%)", rotation=90)
+#             ax.set_xlabel("Steps")
+#             ax.grid(True)
+
+#             legend_text = (
+#                 "LEGEND\n\n"
+#                 "RD: Raw Data\n"
+#                 "SS: Data after Standard Scaling\n"
+#                 + ("LOF: Data after Local Outliers Factor\n" if SHOW_LOF else "")
+#                 + "It.N: Nth Iteration (non-tuned)\n"
+#                   "It.NT: Nth Iteration (TUNED)"
+#             )
+#             ax.text(1.02, 0.98, legend_text, transform=ax.transAxes,
+#                     va='top', ha='left', fontsize=9, family='monospace')
+
+#             best_val = max(final_perf)
+#             best_idx = final_perf.index(best_val)
+#             best_label = labels_perf[best_idx]
+#             ax.plot(best_idx, best_val, marker='o', color='red', markersize=8)
+#             best_text = f"Best Accuracy = {best_val:.2f}%, at {best_label}"
+#             ax.text(1.02, 0.70, best_text, transform=ax.transAxes,
+#                     color='red', fontweight='bold', va='top', ha='left', fontsize=9)
+
+#             try:
+#                 if perf_rows:
+#                     baseline_samples = None
+#                     for _, s, _ in perf_rows:
+#                         if isinstance(s, int):
+#                             baseline_samples = s
+#                             break
+
+#                     def _fmt_removed(samples: int) -> str:
+#                         if not isinstance(samples, int) or not isinstance(baseline_samples, int) or baseline_samples <= 0:
+#                             return "—"
+#                         pct = max(0.0, (1.0 - (samples / baseline_samples)) * 100.0)
+#                         return f"{pct:.2f}%"
+
+#                     def _compact_step_label_for_png(step_raw: str) -> str:
+#                         s = step_raw.strip().lower()
+#                         if s.startswith('results on raw data'):
+#                             return 'Raw Data'
+#                         if s.startswith('results after standard scaler'):
+#                             return 'After S.S.'
+#                         if s.startswith('results after lof'):
+#                             return 'After LOF'
+#                         m = re.search(r'results for iteration number\s+(\d+)', s)
+#                         if m:
+#                             n = m.group(1)
+#                             return f"It {n} (Tuned)" if ('(tuned)' in s or '(turbo)' in s) else f"It {n}"
+#                         return _turbo_to_tuned_preserve_case(step_raw)
+
+#                     fig = plt.gcf()
+#                     right_ax = fig.add_axes([0.82, 0.10, 0.17, 0.82])
+#                     right_ax.axis('off')
+
+#                     data_tbl = [["Step", "Samples", "Rem%", "ACC M%"]]
+#                     first = True
+#                     for step, samples, acc in perf_rows:
+#                         acc_disp = f"{acc:.2f}%" if isinstance(acc, (int, float)) and acc is not None else "—"
+#                         samp_disp = f"{samples:,}".replace(',', '.') if isinstance(samples, int) else "—"
+#                         removed_disp = "0.00%" if first else _fmt_removed(samples)
+#                         first = False
+#                         data_tbl.append([
+#                             _compact_step_label_for_png(step),
+#                             samp_disp,
+#                             removed_disp,
+#                             acc_disp
+#                         ])
+
+#                     table = right_ax.table(cellText=data_tbl,
+#                                            colWidths=[0.23, 0.154, 0.14, 0.20],
+#                                            loc='upper left')
+#                     table.auto_set_font_size(False)
+#                     table.set_fontsize(8)
+#                     table.scale(1.0, 1.2)
+#                     for (row, col), cell in table.get_celld().items():
+#                         cell.set_edgecolor("black")
+#                         if row == 0:
+#                             cell.set_facecolor("#D3D3D3")
+#                             try:
+#                                 cell._text.set_ha('center')
+#                             except Exception:
+#                                 pass
+#                         else:
+#                             if col == 0:
+#                                 try:
+#                                     cell._text.set_ha('left')
+#                                 except Exception:
+#                                     pass
+#                             else:
+#                                 try:
+#                                     cell._text.set_ha('center')
+#                                 except Exception:
+#                                     pass
+#             except Exception:
+#                 pass
+
+#             plt.tight_layout(rect=[0, 0, 0.80, 1])
+#             plt.savefig(perf_png_path)
+#             plt.close()
+
+#             try:
+#                 x_small = list(range(len(final_perf)))
+#                 plt.figure(figsize=(8, 4))
+#                 ax_small = plt.gca()
+#                 ax_small.plot(x_small, final_perf, marker='o', linestyle='-')
+#                 ax_small.set_xticks(x_small)
+#                 ax_small.set_xticklabels(labels_perf, rotation=45, ha='right')
+#                 ax_small.set_title(f"Project {proj} - Accuracy Performance")
+#                 ax_small.set_ylabel("Accuracy Mean (%)")
+#                 ax_small.set_xlabel("Steps")
+#                 ax_small.grid(True)
+
+#                 best_val = max(final_perf)
+#                 best_idx = final_perf.index(best_val)
+#                 best_label = labels_perf[best_idx]
+#                 ax_small.plot(best_idx, best_val, marker='o', color='red', markersize=7)
+#                 best_text = f"Best Accuracy = {best_val:.2f}%, at {best_label}"
+
+#                 fig_small = plt.gcf()
+#                 bbox = ax_small.get_position()
+#                 x_center = (bbox.x0 + bbox.x1) / 2.0
+#                 y_text = max(0.0, bbox.y0 - 0.06)
+#                 fig_small.text(
+#                     x_center,
+#                     y_text,
+#                     best_text,
+#                     ha='center',
+#                     va='top',
+#                     color='red',
+#                     fontweight='bold',
+#                     fontsize=9
+#                 )
+
+#                 plt.tight_layout(rect=[0, 0.12, 1, 1])
+#                 plt.savefig(perf_small_png_path, dpi=300)
+#                 plt.close()
+#             except Exception:
+#                 pass
+#         else:
+#             plt.figure(figsize=(20, 5))
+#             plt.text(0.5, 0.5, 'Nenhum dado de Accuracy Mean encontrado', ha='center', va='center')
+#             plt.axis('off')
+#             plt.savefig(perf_png_path)
+#             plt.close()
+
+#             plt.figure(figsize=(8, 4))
+#             plt.text(0.5, 0.5, 'Nenhum dado de Accuracy Mean encontrado', ha='center', va='center')
+#             plt.axis('off')
+#             plt.savefig(perf_small_png_path, dpi=300)
+#             plt.close()
+
+
+
+
+#         # =====================================================================
+#         # =================== 12) concatenated_results.pdf =====================
+#         # =====================================================================
+#         concatenated_pdf_path = os.path.join(base, 'concatenated_results.pdf')
+        
+#         cover_path = os.path.join(base, 'concatenated_cover_tmp.pdf')
+#         cover_doc = SimpleDocTemplate(cover_path, pagesize=letter)
+#         cover_styles = getSampleStyleSheet()
+#         cover_style = ParagraphStyle(
+#             'CoverTitle',
+#             parent=cover_styles['Title'],
+#             alignment=1,
+#             fontSize=24,
+#             textColor=colors.white,
+#             leading=28
+#         )
+        
+#         def draw_cover_background(canvas, doc):
+#             canvas.saveState()
+#             canvas.setFillColor(colors.black)
+#             canvas.rect(0, 0, letter[0], letter[1], fill=1)
+#             canvas.restoreState()
+        
+#         cover_story = []
+#         main_cover_title = f"PROJECT {proj.upper()} RESULTS OF PERFORMANCE WITH RANDOM FOREST"
+#         words = main_cover_title.split()
+#         broken = "<br/>".join(words)
+#         cover_story.append(Spacer(1, letter[1] / 2 - 14))
+#         cover_story.append(Paragraph(broken, cover_style))
+#         cover_doc.build(cover_story, onFirstPage=draw_cover_background)
+        
+#         writer = PdfWriter()
+#         writer.addpages(PdfReader(cover_path).pages)
+        
+#         def _safe_name(s: str) -> str:
+#             return re.sub(r'[^A-Za-z0-9_.-]+', '_', s)[:80]
+        
+#         def _add_section_with_cover(section_title: str, section_pdf_path: str):
+#             if not os.path.isfile(section_pdf_path):
+#                 return
+#             full_section_title = f"PROJECT {proj.upper()} {section_title}"
+#             words = full_section_title.split()
+#             broken_title = "<br/>".join(words)
+#             tmp_cover = os.path.join(base, f'cover_{_safe_name(section_title)}_{uuid.uuid4().hex}.pdf')
+        
+#             created = False
+#             try:
+#                 tmp_doc = SimpleDocTemplate(tmp_cover, pagesize=letter)
+#                 tmp_story = [Spacer(1, letter[1] / 2 - 14), Paragraph(broken_title, cover_style)]
+#                 tmp_doc.build(tmp_story, onFirstPage=draw_cover_background)
+#                 if os.path.isfile(tmp_cover):
+#                     created = True
+#                     writer.addpages(PdfReader(tmp_cover).pages)
+        
+#                 reader_sec = PdfReader(section_pdf_path)
+#                 if len(reader_sec.pages) > 1:
+#                     writer.addpages(reader_sec.pages[1:])
+#                 else:
+#                     writer.addpages(reader_sec.pages)
+#             except Exception:
+#                 try:
+#                     reader_sec = PdfReader(section_pdf_path)
+#                     writer.addpages(reader_sec.pages)
+#                 except Exception:
+#                     pass
+#             finally:
+#                 if created:
+#                     try:
+#                         os.remove(tmp_cover)
+#                     except Exception:
+#                         pass
+        
+#         rd_pdf = os.path.join('.', 'projs', proj, '00_preprocessing', 'evaluate_results_on_original_data', 'results.pdf')
+#         if os.path.isfile(rd_pdf):
+#             _add_section_with_cover("Results on Raw Data", rd_pdf)
+        
+#         std_pdf = os.path.join('.', 'projs', proj, '02_evaluate_results_after_standard_scaler', 'results.pdf')
+#         if os.path.isfile(std_pdf):
+#             _add_section_with_cover("Results after Standard Scaler", std_pdf)
+        
+#         lof_pdf = os.path.join('.', 'projs', proj, '04_evaluate_results_after_lof', 'results.pdf')
+#         if SHOW_LOF and os.path.isfile(lof_pdf):
+#             _add_section_with_cover("Results after Local Outlier Factor", lof_pdf)
+        
+#         clip_pdf = os.path.join('.', 'projs', proj, '06_evaluate_results_after_optional_clipping', 'results.pdf')
+#         if os.path.isfile(clip_pdf):
+#             _add_section_with_cover("Results after Optional Clipping", clip_pdf)
+        
+#         for it in iteration_numbers:
+#             results_pdf_path = os.path.join('.', 'projs', proj, '12_method', 'step_04', f'results_{it}', 'results.pdf')
+#             if os.path.isfile(results_pdf_path):
+#                 _add_section_with_cover(f"Results after Bayesian Exclusion number {it}", results_pdf_path)
+        
+#             # (PDF tuned fica em results_<it>_turbo, mas o TEXTO deve falar TUNED)
+#             results_pdf_tuned = os.path.join('.', 'projs', proj, '12_method', 'step_04', f'results_{it}_turbo', 'results.pdf')
+#             if os.path.isfile(results_pdf_tuned):
+#                 _add_section_with_cover(f"Results after Bayesian Exclusion number {it} (TUNED)", results_pdf_tuned)
+        
+#         writer.write(concatenated_pdf_path)
+#         try:
+#             os.remove(cover_path)
+#         except Exception:
+#             pass
+        
+
+
+
+
+
+#         # =====================================================================
+#         # ========================= final_summary.pdf ==========================
+#         # =====================================================================
+#         def _display_step_label(step_raw: str) -> str:
+#             s = re.sub(r'(?i)\bresults\b', '', step_raw).strip()
+#             s = re.sub(r'\s+', ' ', s)
+#             # agora é (TUNED) (mas aceita TURBO caso apareça)
+#             s = re.sub(r'\s*\((?i:TURBO|TUNED)\)', '<br/>(TUNED)', s)
+#             return s
+
+#         def _load_lof_summary_table():
+#             if not SHOW_LOF:
+#                 return None
+#             try:
+#                 path = os.path.join(lof_csv_folder_path, 'data_o_to_0_categorized_summary.csv')
+#                 if not os.path.isfile(path):
+#                     return None
+#                 return pd.read_csv(path)
+#             except Exception:
+#                 return None
+
+#         def _load_iteration_summary_table(iteration_n: int):
+#             try:
+#                 if not it_csv_folder_path:
+#                     return None
+#                 path = os.path.join(it_csv_folder_path, f"data_{iteration_n-1}_to_{iteration_n}_categorized_summary.csv")
+#                 if not os.path.isfile(path):
+#                     return None
+#                 df = pd.read_csv(path)
+#                 for c in ('flagged (qt)', 'flagged (%)'):
+#                     if c in df.columns:
+#                         df = df.drop(columns=[c])
+#                 return df
+#             except Exception:
+#                 return None
+
+#         A4_PAGE = A4
+#         small_font = 7
+#         styles = getSampleStyleSheet()
+#         p_step = ParagraphStyle('StepCell', parent=styles['Normal'], alignment=TA_LEFT,
+#                                 fontSize=small_font, leading=small_font+1, spaceAfter=0, wordWrap='CJK')
+#         p_hdr  = ParagraphStyle('HdrCell',  parent=styles['Normal'], alignment=TA_CENTER,
+#                                 fontSize=small_font, leading=small_font+1, spaceAfter=0)
+#         p_cell = ParagraphStyle('ValCell',  parent=styles['Normal'], alignment=TA_CENTER,
+#                                 fontSize=small_font, leading=small_font+1, spaceAfter=0, wordWrap='CJK')
+#         p_cat  = ParagraphStyle('CatCell',  parent=styles['Normal'], alignment=TA_LEFT,
+#                                 fontSize=small_font, leading=small_font+1, spaceAfter=0, wordWrap='CJK')
+
+#         def _text_width(text: str, font_name='Helvetica', font_size=small_font):
+#             try:
+#                 return pdfmetrics.stringWidth(text, font_name, font_size)
+#             except Exception:
+#                 return len(text) * (font_size * 0.4)
+
+#         def _make_inner_table(df_in: pd.DataFrame, cat_colname: str):
+#             if df_in is None or df_in.empty:
+#                 t = Table([["—"]], colWidths=[40])
+#                 t.setStyle(TableStyle([
+#                     ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+#                     ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+#                     ('FONTSIZE', (0,0), (-1,-1), small_font),
+#                     ('GRID', (0,0), (-1,-1), 0.3, colors.black),
+#                 ]))
+#                 return t, 40.0
+
+#             df = df_in.copy()
+#             new_cols = []
+#             percent_cols = set()
+#             for c in df.columns:
+#                 nc = c
+#                 if '(%)' in nc:
+#                     nc = nc.replace(' (%)', '%')
+#                 if '(qt)' in nc:
+#                     nc = nc.replace(' (qt)', '')
+#                 hdr_final = cat_colname if nc == cat_colname else (nc[:1].upper() + nc[1:])
+#                 new_cols.append(hdr_final)
+#                 if nc.endswith('%'):
+#                     percent_cols.add(hdr_final)
+#             df.columns = new_cols
+
+#             for c in list(percent_cols):
+#                 try:
+#                     df[c] = df[c].apply(lambda v: f"{float(v):.2f}%")
+#                 except Exception:
+#                     df[c] = df[c].astype(str).apply(lambda s: s if s.endswith('%') else (s + '%') if s.replace('.','',1).isdigit() else s)
+
+#             header = [Paragraph(h, p_hdr) for h in df.columns]
+#             data_rows = [header]
+#             for _, row in df.iterrows():
+#                 cells = []
+#                 for col in df.columns:
+#                     if col == cat_colname:
+#                         cells.append(Paragraph(str(row[col]), p_cat))
+#                     else:
+#                         cells.append(Paragraph(str(row[col]), p_cell))
+#                 data_rows.append(cells)
+
+#             padding = 6
+#             widths = []
+#             for j, col in enumerate(df.columns):
+#                 texts = [str(col)]
+#                 texts.extend([str(v) for v in df[col].astype(str).values])
+#                 max_line = 0.0
+#                 for tx in texts:
+#                     parts = re.split(r'<br\s*/?>', tx, flags=re.I)
+#                     longest = max(parts, key=lambda s: _text_width(s))
+#                     w = _text_width(longest)
+#                     max_line = max(max_line, w)
+#                 widths.append(max_line + padding)
+
+#             try:
+#                 cat_idx = list(df.columns).index(cat_colname)
+#                 widths[cat_idx] = max(widths[cat_idx] * 2.0, widths[cat_idx] + 60)
+#             except Exception:
+#                 pass
+
+#             tbl_inner = Table(data_rows, colWidths=widths, repeatRows=1)
+#             tbl_inner.setStyle(TableStyle([
+#                 ('BACKGROUND', (0,0), (-1,0), colors.lightgrey),
+#                 ('TEXTCOLOR', (0,0), (-1,0), colors.black),
+#                 ('ALIGN', (0,0), (-1,0), 'CENTER'),
+#                 ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+#                 ('GRID', (0,0), (-1,-1), 0.3, colors.black),
+#                 ('FONTSIZE', (0,0), (-1,-1), small_font),
+#                 ('LEFTPADDING', (0,0), (-1,-1), 2),
+#                 ('RIGHTPADDING', (0,0), (-1,-1), 2),
+#                 ('TOPPADDING', (0,0), (-1,-1), 1),
+#                 ('BOTTOMPADDING', (0,0), (-1,-1), 1),
+#             ]))
+#             return tbl_inner, float(sum(widths))
+
+#         def _parse_accuracy_by_tables(concat_path: str, category_col: str):
+#             out = {}
+#             if not os.path.isfile(concat_path):
+#                 return out
+
+#             with open(concat_path, 'r', encoding='utf-8') as f:
+#                 lines = [ln.rstrip('\n') for ln in f.readlines()]
+
+#             esc_cat = re.escape(category_col)
+#             dash = r"[—-]"
+#             patterns = [
+#                 (re.compile(rf'^\s*Results on (Original|Raw) Data\s*{dash}\s*Accuracy by\s+{esc_cat}\s*$', re.I), 'raw'),
+#                 (re.compile(rf'^\s*After Standard Scaler\s*{dash}\s*Accuracy by\s+{esc_cat}\s*$', re.I), 'ss'),
+#                 (re.compile(rf'^\s*After LOF\s*{dash}\s*Accuracy by\s+{esc_cat}\s*$', re.I), 'lof'),
+#                 (re.compile(rf'^\s*After Bayesian Exclusion\s+(\d+)\s*{dash}\s*Accuracy by\s+{esc_cat}\s*$', re.I), 'it'),
+#                 (re.compile(rf'^\s*After Bayesian Exclusion\s+(\d+)\s*\((?:TURBO|TUNED)\)\s*{dash}\s*Accuracy by\s+{esc_cat}\s*$', re.I), 'itT'),
+#             ]
+
+#             def _grab_table(start_idx):
+#                 data = []
+#                 i = start_idx + 1
+#                 while i < len(lines):
+#                     s = lines[i].strip()
+#                     if not s:
+#                         break
+#                     if s.startswith('#') or re.match(r'^Results\b', s, re.I) or re.match(r'^After\b', s, re.I):
+#                         break
+#                     data.append(lines[i])
+#                     i += 1
+#                 return data
+
+#             def _to_dataframe(raw_lines):
+#                 rows = []
+#                 header_seen = False
+#                 for ln in raw_lines:
+#                     if re.match(r'^\s*[-+|=]+\s*$', ln):
+#                         continue
+#                     parts = [p.strip() for p in re.split(r'\|', ln.strip().strip('|'))]
+#                     if len(parts) >= 2:
+#                         if (not header_seen) and any(re.search(r'\bmean\b', p, re.I) for p in parts):
+#                             header_seen = True
+#                             continue
+#                         label = parts[0]
+#                         val = None
+#                         for p in reversed(parts[1:]):
+#                             m = re.search(r'[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?%?', p)
+#                             if m:
+#                                 val = m.group(0)
+#                                 break
+#                         if label and val:
+#                             rows.append([label, val])
+#                         continue
+#                     cols = re.split(r'\s{2,}', ln.strip())
+#                     if len(cols) >= 2:
+#                         label = cols[0].strip()
+#                         m = re.search(r'[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?%?', cols[-1])
+#                         if label and m:
+#                             rows.append([label, m.group(0)])
+#                 if not rows:
+#                     return None
+
+#                 norm = []
+#                 for lab, val in rows:
+#                     v = str(val).strip()
+#                     if v.endswith('%'):
+#                         try:
+#                             vnum = float(v[:-1])
+#                             v = f"{vnum:.4f}%"
+#                         except Exception:
+#                             pass
+#                     else:
+#                         try:
+#                             vnum = float(v)
+#                             v = f"{vnum:.4f}%"
+#                         except Exception:
+#                             pass
+#                     norm.append([lab, v])
+
+#                 try:
+#                     return pd.DataFrame(norm, columns=[category_col, 'Mean'])
+#                 except Exception:
+#                     return None
+
+#             i = 0
+#             while i < len(lines):
+#                 s = lines[i]
+#                 for rx, kind in patterns:
+#                     m = rx.match(s)
+#                     if m:
+#                         if (kind == 'lof') and (not SHOW_LOF):
+#                             break
+#                         data_lines = _grab_table(i)
+#                         df_tab = _to_dataframe(data_lines)
+#                         if df_tab is not None and not df_tab.empty:
+#                             if kind == 'raw':
+#                                 out['raw'] = df_tab
+#                             elif kind == 'ss':
+#                                 out['ss'] = df_tab
+#                             elif kind == 'lof':
+#                                 out['lof'] = df_tab
+#                             elif kind == 'it':
+#                                 out[f"it{int(m.group(1))}"] = df_tab
+#                             elif kind == 'itT':
+#                                 out[f"it{int(m.group(1))}T"] = df_tab
+#                         break
+#                 i += 1
+#             return out
+
+#         acc_by_map = _parse_accuracy_by_tables(concatenated_txt_path, cat_col)
+
+#         def _choose_inner_df_for_step(step_disp: str):
+#             text = re.sub(r'<br\s*/?>', ' ', step_disp, flags=re.I)
+#             low = text.strip().lower()
+#             if 'raw data' in low or 'after standard scaler' in low:
+#                 return None
+#             if 'after lof' in low:
+#                 return _load_lof_summary_table()
+#             m = re.search(r'iteration number\s+(\d+)', low)
+#             if m:
+#                 n = int(m.group(1))
+#                 return _load_iteration_summary_table(n)
+#             return None
+
+#         outer_headers = ["Step", "Samples", "ACC.M.", "ACC.M./L", "Removals"]
+#         outer_header_cells = [Paragraph(h, p_hdr) for h in outer_headers]
+#         outer_data = [outer_header_cells]
+
+#         inner_tables_by_step = {}
+#         max_removals_w = 0.0
+
+#         for step_raw, samples, acc in perf_rows:
+#             step_disp = _display_step_label(step_raw)
+#             df_inner = _choose_inner_df_for_step(step_disp)
+#             tbl_inner = None
+#             inner_total_w = 0.0
+#             if df_inner is not None:
+#                 tbl_inner, inner_total_w = _make_inner_table(df_inner, cat_colname=cat_col)
+#                 max_removals_w = max(max_removals_w, inner_total_w)
+#             inner_tables_by_step[step_raw] = (tbl_inner, inner_total_w)
+
+#         def _acc_key_for_step(step_raw: str):
+#             sr = step_raw.lower()
+#             if 'results on raw data' in sr:
+#                 return 'raw'
+#             if 'results after standard scaler' in sr:
+#                 return 'ss'
+#             if 'results after lof' in sr:
+#                 return 'lof'
+#             m = re.search(r'iteration number\s+(\d+)', sr)
+#             if m and (('(tuned)' in sr) or ('(turbo)' in sr)):
+#                 return f"it{int(m.group(1))}T"
+#             if m:
+#                 return f"it{int(m.group(1))}"
+#             return None
+
+#         acc_tables_by_step = {}
+#         max_accl_w = 0.0
+
+#         for step_raw, _, _ in perf_rows:
+#             key = _acc_key_for_step(step_raw)
+#             if (key == 'lof') and (not SHOW_LOF):
+#                 acc_tables_by_step[step_raw] = (None, 0.0)
+#                 continue
+#             df_acc = acc_by_map.get(key, None)
+#             if df_acc is not None and not df_acc.empty:
+#                 df_acc = df_acc.rename(columns={df_acc.columns[0]: cat_col, df_acc.columns[-1]: 'Mean'})
+#                 hdr = [Paragraph(cat_col[:1].upper() + cat_col[1:], p_hdr), Paragraph("Mean", p_hdr)]
+#                 rows = [hdr]
+#                 for _, r in df_acc.iterrows():
+#                     cat_txt = _xml_escape(str(r[cat_col]))
+#                     rows.append([Paragraph(cat_txt, p_cat),
+#                                  Paragraph(str(r['Mean']),   p_cell)])
+
+#                 pad = 6
+#                 col_w0 = max(_text_width(cat_col), max((_text_width(str(x)) for x in df_acc[cat_col].astype(str)), default=0)) + pad
+#                 col_w1 = max(_text_width('Mean'),   max((_text_width(str(x)) for x in df_acc['Mean'].astype(str)), default=0)) + pad
+#                 col_w0 = max(col_w0 * 2.0, col_w0 + 60)
+
+#                 tbl_acc = Table(rows, colWidths=[col_w0, col_w1], repeatRows=1)
+#                 tbl_acc.setStyle(TableStyle([
+#                     ('BACKGROUND', (0,0), (-1,0), colors.lightgrey),
+#                     ('ALIGN', (0,0), (-1,0), 'CENTER'),
+#                     ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+#                     ('GRID', (0,0), (-1,-1), 0.3, colors.black),
+#                     ('FONTSIZE', (0,0), (-1,-1), small_font),
+#                     ('LEFTPADDING', (0,0), (-1,-1), 2),
+#                     ('RIGHTPADDING', (0,0), (-1,-1), 2),
+#                     ('TOPPADDING', (0,0), (-1,-1), 1),
+#                     ('BOTTOMPADDING', (0,0), (-1,-1), 1),
+#                 ]))
+#                 total_w = col_w0 + col_w1
+#                 acc_tables_by_step[step_raw] = (tbl_acc, total_w)
+#                 max_accl_w = max(max_accl_w, total_w)
+#             else:
+#                 acc_tables_by_step[step_raw] = (None, 0.0)
+
+#         left_margin = right_margin = 36
+#         page_w = A4[0] - left_margin - right_margin
+
+#         min_step_w = _text_width("Step")
+#         min_samples_w = _text_width("Samples")
+#         min_acc_w = _text_width("ACC.M.")
+
+#         for step_raw, samples, acc in perf_rows:
+#             step_disp = _display_step_label(step_raw)
+#             parts = re.split(r'<br\s*/?>', step_disp)
+#             longest = max(parts, key=lambda s: _text_width(s))
+#             min_step_w = max(min_step_w, _text_width(longest))
+
+#             s_samples = f"{samples:,}".replace(',', '.') if isinstance(samples, int) else "—"
+#             min_samples_w = max(min_samples_w, _text_width(s_samples))
+
+#             s_acc = f"{acc:.4f}%" if isinstance(acc, (int, float)) and acc is not None else "—"
+#             min_acc_w = max(min_acc_w, _text_width(s_acc))
+
+#         min_rem_w = max_removals_w if max_removals_w > 0 else _text_width("Removals") + 30
+#         min_accl_tab_w = max_accl_w if max_accl_w > 0 else _text_width("ACC.M./L") + 30
+
+#         pad_out = 8
+#         step_col_w = min_step_w + pad_out
+#         sam_col_w  = max(min_samples_w + pad_out, 40)
+#         acc_col_w  = max(min_acc_w + pad_out, 45)
+#         accl_col_w = min_accl_tab_w + pad_out
+#         rem_col_w  = min_rem_w + pad_out
+
+#         reduce_step    = step_col_w * 0.30
+#         reduce_samples = sam_col_w  * 0.20
+#         reduce_acc     = acc_col_w  * 0.10
+#         step_col_w *= 0.70
+#         sam_col_w  *= 0.80
+#         acc_col_w  *= 0.90
+#         freed = reduce_step + reduce_samples + reduce_acc
+#         accl_col_w += freed / 2.0
+#         rem_col_w  += freed / 2.0
+
+#         total_needed = step_col_w + sam_col_w + acc_col_w + accl_col_w + rem_col_w
+#         if total_needed > page_w:
+#             overflow = total_needed - page_w
+#             reducible = (step_col_w - 60) + (sam_col_w - 40) + (acc_col_w - 45)
+#             if reducible > 0:
+#                 ratio = min(1.0, overflow / reducible)
+#                 step_col_w -= (step_col_w - 60) * ratio
+#                 sam_col_w  -= (sam_col_w  - 40) * ratio
+#                 acc_col_w  -= (acc_col_w  - 45) * ratio
+#             total_needed = step_col_w + sam_col_w + acc_col_w + accl_col_w + rem_col_w
+#             if total_needed > page_w:
+#                 rest = total_needed - page_w
+#                 shrink = rest / 2.0
+#                 accl_col_w = max(120, accl_col_w - shrink)
+#                 rem_col_w  = max(120, rem_col_w  - shrink)
+
+#         outer_col_widths = [step_col_w, sam_col_w, acc_col_w, accl_col_w, rem_col_w]
+
+#         for idx, (step_raw, samples, acc) in enumerate(perf_rows):
+#             step_disp = _display_step_label(step_raw)
+#             acc_disp  = f"{acc:.4f}%" if isinstance(acc, (int, float)) and acc is not None else "—"
+#             samp_disp = f"{samples:,}".replace(',', '.') if isinstance(samples, int) else "—"
+
+#             step_cell = Paragraph(step_disp, p_step)
+
+#             acc_tbl, _acw = acc_tables_by_step.get(step_raw, (None, 0.0))
+#             accl_cell = Paragraph("", p_cell) if acc_tbl is None else KeepInFrame(accl_col_w - 6, 10000, [acc_tbl], mode='shrink')
+
+#             rem_tbl, _rw = inner_tables_by_step.get(step_raw, (None, 0.0))
+#             if rem_tbl is None:
+#                 rem_cell = Paragraph("None", p_cell) if idx in (0, 1) else Paragraph("", p_cell)
+#             else:
+#                 rem_cell = KeepInFrame(rem_col_w - 6, 10000, [rem_tbl], mode='shrink')
+
+#             outer_data.append([
+#                 step_cell,
+#                 Paragraph(str(samp_disp), p_cell),
+#                 Paragraph(str(acc_disp), p_cell),
+#                 accl_cell,
+#                 rem_cell
+#             ])
+
+#         final_pdf = os.path.join(base, 'final_summary.pdf')
+#         doc_final = SimpleDocTemplate(
+#             final_pdf,
+#             pagesize=A4,
+#             leftMargin=left_margin, rightMargin=right_margin,
+#             topMargin=36, bottomMargin=36
+#         )
+#         story_final = []
+#         story_final.append(Paragraph(
+#             f"Final Summary - {proj}",
+#             ParagraphStyle('H2C', parent=styles['Heading2'], alignment=TA_CENTER)
+#         ))
+#         story_final.append(Spacer(1, 6))
+
+#         tbl_final = Table(outer_data, colWidths=outer_col_widths, repeatRows=1)
+#         tbl_final.setStyle(TableStyle([
+#             ('BACKGROUND', (0,0), (-1,0), colors.lightgrey),
+#             ('TEXTCOLOR', (0,0), (-1,0), colors.black),
+#             ('ALIGN', (0,0), (-1,0), 'CENTER'),
+#             ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+#             ('FONTSIZE', (0,0), (-1,-1), small_font),
+#             ('GRID', (0,0), (-1,-1), 0.3, colors.black),
+#             ('LEFTPADDING', (0,0), (-1,-1), 2),
+#             ('RIGHTPADDING', (0,0), (-1,-1), 2),
+#             ('TOPPADDING', (0,0), (-1,-1), 1.5),
+#             ('BOTTOMPADDING', (0,0), (-1,-1), 1.5),
+#         ]))
+#         story_final.append(tbl_final)
+#         doc_final.build(story_final)
+
+#         # =====================================================================
+#         # ======================== aggregated_results.pdf ======================
+#         # =====================================================================
+#         aggregated_pdf_path = os.path.join(base, 'aggregated_results.pdf')
+#         doc_agg = SimpleDocTemplate(aggregated_pdf_path, pagesize=_LETTER)
+#         story_agg = []
+#         story_agg.append(Paragraph("Aggregated Results (from first to last iteration)", styles['Heading2']))
+#         story_agg.append(Spacer(1, 12))
+
+#         agg_headers = [
+#             'Total',
+#             'Kept (qt)',
+#             'Kept (%)',
+#             'Removed (qt)',
+#             'Removed (%)',
+#             'Flagged (qt)',
+#             'Flagged (%)'
+#         ]
+#         agg_table = [agg_headers]
+
+#         init_total_from_mp = None
+#         for step_name, samples_val, _acc_val in perf_rows:
+#             if _norm_step(step_name).startswith('results on raw data'):
+#                 if isinstance(samples_val, int):
+#                     init_total_from_mp = samples_val
+#                 break
+
+#         first_row = totals_df.iloc[0]
+#         last_row  = totals_df.iloc[-1]
+#         init_total_fallback = int(first_row['total'])
+#         init_total = init_total_from_mp if isinstance(init_total_from_mp, int) else init_total_fallback
+
+#         kept_qt    = int(last_row['kept (qt)'])
+#         flagged_qt = int(totals_df['flagged (qt)'].sum())
+#         removed_qt = max(0, init_total - kept_qt - flagged_qt)
+
+#         kept_pct    = (kept_qt / init_total) * 100.0 if init_total > 0 else 0.0
+#         removed_pct = (removed_qt / init_total) * 100.0 if init_total > 0 else 0.0
+#         flagged_pct = (flagged_qt / init_total) * 100.0 if init_total > 0 else 0.0
+
+#         agg_table.append([
+#             init_total,
+#             kept_qt,    f"{kept_pct:.2f}",
+#             removed_qt, f"{removed_pct:.2f}",
+#             flagged_qt, f"{flagged_pct:.2f}",
+#         ])
+
+#         page_width = _LETTER[0] - 2 * 36
+#         each_col = page_width / len(agg_headers)
+#         agg_col_widths = [each_col] * len(agg_headers)
+
+#         tbl_agg = Table(agg_table, colWidths=agg_col_widths, repeatRows=1)
+#         tbl_agg.setStyle(TableStyle([
+#             ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+#             ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+#             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+#             ('ALIGN', (0, 1), (-1, -1), 'CENTER'),
+#             ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+#             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+#         ]))
+#         story_agg.append(tbl_agg)
+#         doc_agg.build(story_agg)
+
+#         # =====================================================================
+#         # ======================== aggregated_results.png ======================
+#         # =====================================================================
+#         aggregated_png_path = os.path.join(base, 'aggregated_results.png')
+
+#         step_labels = []
+#         if os.path.isfile(rd_txt_path):
+#             step_labels.append('raw')
+#         if os.path.isfile(ss_txt_path):
+#             step_labels.append('ss')
+#         if SHOW_LOF and os.path.isfile(lof_txt_path):
+#             step_labels.append('lof')
+#         for it in iteration_numbers:
+#             if os.path.isfile(os.path.join('.', 'projs', proj, '12_method', 'step_04', f'results_{it}', 'results.txt')):
+#                 step_labels.append(f'it{it}')
+#         for it in iteration_numbers:
+#             if os.path.isfile(os.path.join('.', 'projs', proj, '12_method', 'step_04', f'results_{it}_turbo', 'results.txt')):
+#                 step_labels.append(f'it{it}T')
+
+#         def _val_to_float_pct(v):
+#             s = str(v).strip()
+#             if s.endswith('%'):
+#                 try:
+#                     val = float(s[:-1])
+#                 except Exception:
+#                     return None
+#             else:
+#                 try:
+#                     val = float(s)
+#                 except Exception:
+#                     return None
+#             if -1.0000001 <= val <= 1.0000001:
+#                 return val * 100.0
+#             return val
+
+#         cats_set = set()
+#         for key in acc_by_map:
+#             dfk = acc_by_map[key]
+#             if dfk is not None and not dfk.empty:
+#                 cats_set |= set(dfk.iloc[:, 0].astype(str).map(normalize_all).values)
+
+#         cats_sorted = []
+#         if 'ALL' in cats_set:
+#             cats_sorted.append('ALL')
+#         cats_sorted += sorted([c for c in cats_set if c != 'ALL'], key=str.casefold)
+
+#         x_ticks = []
+#         for lab in step_labels:
+#             if lab == 'raw':
+#                 x_ticks.append('RD')
+#             elif lab == 'ss':
+#                 x_ticks.append('SS')
+#             elif lab == 'lof':
+#                 x_ticks.append('LOF')
+#             elif lab.endswith('T'):
+#                 x_ticks.append(f"It.{lab[2:-1]}T")
+#             else:
+#                 x_ticks.append(f"It.{lab[2:]}")
+
+#         x_pos = list(range(len(x_ticks)))
+
+#         plt.figure(figsize=(20, 6))
+#         ax = plt.gca()
+
+#         def _fill_continuity(values):
+#             vals = values[:]
+#             idx_valid = [i for i, v in enumerate(vals) if isinstance(v, (int, float))]
+#             if not idx_valid:
+#                 return vals
+#             first, last = idx_valid[0], idx_valid[-1]
+#             for i in range(0, first):
+#                 vals[i] = vals[first]
+#             for i in range(last + 1, len(vals)):
+#                 vals[i] = vals[last]
+#             i = 0
+#             while i < len(vals):
+#                 if vals[i] is None:
+#                     j = i
+#                     while j < len(vals) and vals[j] is None:
+#                         j += 1
+#                     left = vals[i - 1] if i - 1 >= 0 else None
+#                     right = vals[j] if j < len(vals) else None
+#                     if isinstance(left, (int, float)) and isinstance(right, (int, float)):
+#                         for k in range(i, j):
+#                             t = (k - (i - 1)) / (j - (i - 1))
+#                             vals[k] = left + t * (right - left)
+#                     else:
+#                         fillv = left if isinstance(left, (int, float)) else right
+#                         for k in range(i, j):
+#                             vals[k] = fillv
+#                     i = j
+#                 else:
+#                     i += 1
+#             return vals
+
+#         # ---------------- ALL (linha global) ----------------
+#         # Fonte correta: perf_rows (mesma do method_performance_small.png)
+#         step_key_to_acc = {}
+#         for step_raw, _samples, acc in perf_rows:
+#             key = _acc_key_for_step(step_raw)
+#             if key and isinstance(acc, (int, float)):
+#                 step_key_to_acc[key] = acc
+
+#         y_all = []
+#         for lab in step_labels:
+#             y_all.append(step_key_to_acc.get(lab))
+#         y_all = _fill_continuity(y_all)
+
+#         ax.plot(
+#             x_pos,
+#             y_all,
+#             marker='D',
+#             linestyle='-',
+#             color='black',
+#             linewidth=4,
+#             markersize=7,
+#             label='ALL',
+#             zorder=10
+#         )
+
+#         # ---------------- Culturas (nunca preto, nunca em negrito) ----------------
+#         import matplotlib as _mpl
+#         cycle_colors = [c.get('color') for c in _mpl.rcParams['axes.prop_cycle']]
+
+#         def _is_black(c):
+#             if c is None:
+#                 return False
+#             s = str(c).strip().lower()
+#             return s in ('k', 'black', '#000', '#000000')
+
+#         cycle_colors = [c for c in cycle_colors if not _is_black(c)]
+#         if not cycle_colors:
+#             cycle_colors = ['C0', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9']
+
+#         ci = 0
+#         for cat in [c for c in cats_sorted if c != 'ALL']:
+#             y_cat = []
+#             for lab in step_labels:
+#                 dfk = acc_by_map.get(lab)
+#                 if dfk is None or dfk.empty:
+#                     y_cat.append(None)
+#                     continue
+#                 row = dfk[dfk.iloc[:, 0].astype(str).map(normalize_all) == cat]
+#                 y_cat.append(_val_to_float_pct(row.iloc[0, 1]) if not row.empty else None)
+
+#             y_cat = _fill_continuity(y_cat)
+#             color_cat = cycle_colors[ci % len(cycle_colors)]
+#             ci += 1
+
+#             ax.plot(
+#                 x_pos,
+#                 y_cat,
+#                 marker='o',
+#                 linestyle='-',
+#                 linewidth=1.5,
+#                 color=color_cat,
+#                 label=cat,
+#                 zorder=2
+#             )
+
+#         ax.set_xticks(x_pos)
+#         ax.set_xticklabels(x_ticks)
+#         ax.set_title(f"Project {proj} - Accuracy by Category (Aggregated)")
+#         ax.set_ylabel("Accuracy Mean (%)")
+#         ax.set_xlabel("Steps")
+#         ax.grid(True, alpha=0.3)
+#         ax.tick_params(axis='x', pad=18)
+
+#         plt.subplots_adjust(left=0.06, right=0.58, bottom=0.22, top=0.96)
+
+#         fig = plt.gcf()
+#         handles, labels = ax.get_legend_handles_labels()
+#         if 'ALL' in labels:
+#             idx_all = labels.index('ALL')
+#             handles = [handles[idx_all]] + [h for i, h in enumerate(handles) if i != idx_all]
+#             labels = ['ALL'] + [l for l in labels if l != 'ALL']
+        
+#         ##########################################################################################
+        
+#         legend_ax = fig.add_axes([0.60, 0.26, 0.18, 0.7])
+#         legend_ax.axis('off')
+        
+#         legend_ax.legend(
+#             handles,
+#             labels,
+#             loc='upper left',
+#             bbox_to_anchor=(0.0, 1.0),
+#             borderaxespad=0.,
+#             title="Legend",
+#             frameon=True,
+#             prop={'size': 14},
+#             title_fontsize=16,
+#             handlelength=3.0,
+#             labelspacing=1.0
+#         )
+        
+#         ax.set_title(
+#             f"Project {proj} - Accuracy by Category (Aggregated)",
+#             fontsize=20
+#         )
+        
+#         ax.set_xlabel(
+#             "Steps",
+#             fontsize=20
+#         )
+        
+#         ax.set_ylabel(
+#             "Accuracy Mean (%)",
+#             fontsize=20
+#         )
+        
+#         ax.tick_params(
+#             axis='both',
+#             labelsize=16
+#         )        
+        
+#         ##########################################################################################
+        
+
+#         table_ax = fig.add_axes([0.80, 0.25, 0.18, 0.71])
+#         table_ax.axis('off')
+
+#         data_tbl = [["Step", "Samples", "Rem%", "ACC M%"]]
+
+#         baseline_samples = None
+#         for _, s, _ in perf_rows:
+#             if isinstance(s, int):
+#                 baseline_samples = s
+#                 break
+
+#         def _fmt_removed(samples: int) -> str:
+#             if not isinstance(samples, int) or not isinstance(baseline_samples, int) or baseline_samples <= 0:
+#                 return "—"
+#             pct = max(0.0, (1.0 - (samples / baseline_samples)) * 100.0)
+#             return f"{pct:.2f}%"
+
+#         def _compact_step_label_for_png(step_raw: str) -> str:
+#             s = step_raw.strip().lower()
+#             if s.startswith('results on raw data'):
+#                 return 'Raw Data'
+#             if s.startswith('results after standard scaler'):
+#                 return 'After S.S.'
+#             if s.startswith('results after lof'):
+#                 return 'After LOF'
+#             m = re.search(r'results for iteration number\s+(\d+)', s)
+#             if m:
+#                 n = m.group(1)
+#                 return f"It {n} (Tuned)" if ('(tuned)' in s or '(turbo)' in s) else f"It {n}"
+#             return _turbo_to_tuned_preserve_case(step_raw)
+
+#         first = True
+#         for step, samples, acc in perf_rows:
+#             acc_disp = f"{acc:.2f}%" if isinstance(acc, (int, float)) and acc is not None else "—"
+#             samp_disp = f"{samples:,}".replace(',', '.') if isinstance(samples, int) else "—"
+#             removed_disp = "0.00%" if first else _fmt_removed(samples)
+#             first = False
+#             data_tbl.append([
+#                 _compact_step_label_for_png(step),
+#                 samp_disp,
+#                 removed_disp,
+#                 acc_disp
+#             ])
+
+#         table = table_ax.table(
+#             cellText=data_tbl,
+#             colWidths=[0.25, 0.17, 0.15, 0.20],
+#             loc='upper left'
+#         )
+#         table.auto_set_font_size(False)
+#         table.set_fontsize(8)
+#         table.scale(1.20, 1.15)
+#         for (row, col), cell in table.get_celld().items():
+#             cell.set_edgecolor("black")
+#             if row == 0:
+#                 cell.set_facecolor("#D3D3D3")
+
+#         legend_text = (
+#             "LEGEND  |  RD: Raw Data  |  SS: Data after Standard Scaling"
+#             + ("  |  LOF: Data after Local Outliers Factor" if SHOW_LOF else "")
+#             + "  |  It.N: Nth Iteration (non-tuned)  |  It.NT: Nth Iteration (TUNED)"
+#         )
+
+#         fig.text(
+#             0.05, 0.05, legend_text,
+#             ha='left', va='top',
+#             fontsize=10, family='monospace'
+#         )
+
+#         try:
+#             valid = [(i, v) for i, v in enumerate(y_all) if isinstance(v, (int, float))]
+#             if valid:
+#                 best_idx, best_val = max(valid, key=lambda t: t[1])
+#                 ax.plot(best_idx, best_val, marker='D', color='red')
+#                 best_text = f"Best Accuracy = {best_val:.2f}%, at {x_ticks[best_idx]}"
+#                 fig.text(
+#                     0.5, 0.0, best_text,
+#                     ha='center', va='bottom',
+#                     color='red', fontweight='bold', fontsize=10
+#                 )
+#         except Exception:
+#             pass
+
+#         plt.savefig(aggregated_png_path)
+#         plt.close()
+
+#         # =====================================================================
+#         # =================== Confusion Matrix (CSV/TEX/PNG) ==================
+#         # =====================================================================
+#         try:
+#             base_step04 = os.path.join('.', 'projs', proj, '12_method', 'step_04')
+#             targets_csv = os.path.join('.', 'projs', proj, '08_mapping_original_labels', 'targets.csv')
+
+#             if os.path.isdir(base_step04) and os.path.isfile(targets_csv):
+#                 candidates = glob.glob(os.path.join(base_step04, 'results_*'))
+#                 last_it = None
+#                 has_turbo_for_last = False
+
+#                 for path in candidates:
+#                     name = os.path.basename(path)
+#                     m = re.match(r'^results_(\d+)(_turbo)?$', name)
+#                     if not m:
+#                         continue
+#                     it = int(m.group(1))
+#                     turbo = bool(m.group(2))
+#                     if (last_it is None) or (it > last_it):
+#                         last_it = it
+#                         has_turbo_for_last = turbo
+#                     elif it == last_it and turbo:
+#                         has_turbo_for_last = True
+
+#                 if last_it is not None:
+#                     pred_turbo_dir = os.path.join(base_step04, f'results_{last_it}_turbo')
+#                     pred_nt_dir    = os.path.join(base_step04, f'results_{last_it}')
+#                     pred_csv_path  = None
+#                     used_suffix    = ""
+
+#                     turbo_candidate = os.path.join(pred_turbo_dir, 'predicted.csv')
+#                     nt_candidate    = os.path.join(pred_nt_dir,    'predicted.csv')
+
+#                     if os.path.isfile(turbo_candidate):
+#                         pred_csv_path = turbo_candidate
+#                         used_suffix   = "T"
+#                     elif os.path.isfile(nt_candidate):
+#                         pred_csv_path = nt_candidate
+#                         used_suffix   = ""
+
+#                     if pred_csv_path is not None:
+#                         df_targets = pd.read_csv(targets_csv)
+#                         df_pred    = pd.read_csv(pred_csv_path)
+
+#                         if {'id', 'label'}.issubset(df_targets.columns) and {'id', 'label'}.issubset(df_pred.columns):
+#                             try:
+#                                 label_map_path = os.path.join('.', 'projs', proj, '08_mapping_original_labels', 'label_map.csv')
+#                                 if os.path.isfile(label_map_path):
+#                                     df_map = pd.read_csv(label_map_path)
+#                                     if {'label_text', 'label_integer'}.issubset(df_map.columns):
+#                                         map_dict = {int(row['label_integer']): str(row['label_text']) for _, row in df_map.iterrows()}
+
+#                                         def _map_label(v):
+#                                             try:
+#                                                 return map_dict[int(v)]
+#                                             except Exception:
+#                                                 return str(v)
+
+#                                         df_targets['label'] = df_targets['label'].apply(_map_label)
+#                                 else:
+#                                     df_targets['label'] = df_targets['label'].astype(str)
+#                             except Exception:
+#                                 df_targets['label'] = df_targets['label'].astype(str)
+
+#                             df_pred = df_pred.rename(columns={'label': 'pred_label'})
+
+#                             merged = df_targets[['id', 'label']].merge(
+#                                 df_pred[['id', 'pred_label']],
+#                                 on='id',
+#                                 how='inner'
+#                             ).dropna(subset=['label', 'pred_label'])
+
+#                             if not merged.empty:
+#                                 y_true = merged['label'].astype(str)
+#                                 y_pred = merged['pred_label'].astype(str)
+
+#                                 cm = pd.crosstab(y_true, y_pred)
+
+#                                 cm_csv_path = os.path.join(base, 'confusion_matrix.csv')
+#                                 cm.to_csv(cm_csv_path, index=True)
+
+#                                 def _latex_escape(text: str) -> str:
+#                                     rep = {
+#                                         '\\': r'\textbackslash{}',
+#                                         '&': r'\&',
+#                                         '%': r'\%',
+#                                         '$': r'\$',
+#                                         '#': r'\#',
+#                                         '_': r'\_',
+#                                         '{': r'\{',
+#                                         '}': r'\}',
+#                                         '~': r'\textasciitilde{}',
+#                                         '^': r'\textasciicircum{}',
+#                                     }
+#                                     for k, v in rep.items():
+#                                         text = text.replace(k, v)
+#                                     return text
+
+#                                 cols = list(cm.columns)
+#                                 rows = list(cm.index)
+
+#                                 rotate_titles = str(
+#                                     request.form.get('rotate_titles_in_the_matrix_of_confusion', 'false')
+#                                 ).strip().lower() in ('true', '1', 'yes', 'y')
+
+#                                 lines = []
+#                                 lines.append(r"\begin{table}[!h]")
+#                                 lines.append(r"\centering")
+#                                 lines.append(rf"\caption{{{_latex_escape('Confusion matrix (after exclusion) — last iteration')}}}")
+#                                 lines.append(rf"\label{{{_latex_escape('tab:confusion_matrix_after')}}}")
+#                                 lines.append(r"\begin{tabular}{@{}l" + "r" * len(cols) + r"@{}}")
+#                                 lines.append(r"\hline")
+
+#                                 if rotate_titles:
+#                                     col_headers_tex = [rf"\rotatebox[origin=c]{{90}}{{{_latex_escape(str(c))}}}" for c in cols]
+#                                 else:
+#                                     col_headers_tex = [_latex_escape(str(c)) for c in cols]
+
+#                                 header = "True \\ Pred" + " & " + " & ".join(col_headers_tex) + r" \\ \hline"
+#                                 lines.append(header)
+
+#                                 for r in rows:
+#                                     vals = " & ".join(str(int(cm.loc[r, c])) for c in cols)
+#                                     lines.append(_latex_escape(str(r)) + " & " + vals + r" \\")
+#                                 lines.append(r"\hline")
+#                                 lines.append(r"\end{tabular}")
+#                                 lines.append(r"\end{table}")
+
+#                                 cm_tex_path = os.path.join(base, 'confusion_matrix.tex')
+#                                 with open(cm_tex_path, 'w', encoding='utf-8') as f:
+#                                     f.write("\n".join(lines))
+
+#                                 cm_png_path = os.path.join(base, 'confusion_matrix.png')
+#                                 plt.figure(figsize=(10, 8))
+#                                 ax_cm = plt.gca()
+
+#                                 cmap_wh_or_red = LinearSegmentedColormap.from_list(
+#                                     'wh_or_red',
+#                                     [
+#                                         (0.0, '#FFFBE6'),
+#                                         (0.40, '#FFD180'),
+#                                         (0.70, '#FF8F00'),
+#                                         (1.0, '#D32F2F'),
+#                                     ]
+#                                 )
+#                                 vmax = int(np.max(cm.values)) if cm.values.size else 1
+#                                 if vmax <= 0:
+#                                     vmax = 1
+#                                 norm = Normalize(vmin=0, vmax=vmax)
+
+#                                 im = ax_cm.imshow(cm.values, aspect='auto', cmap=cmap_wh_or_red, norm=norm)
+
+#                                 ax_cm.set_xticks(range(len(cols)))
+#                                 ax_cm.set_yticks(range(len(rows)))
+#                                 ax_cm.set_xticklabels(cols, rotation=45, ha='right')
+#                                 ax_cm.set_yticklabels(rows)
+#                                 ax_cm.set_xlabel('Predicted')
+#                                 ax_cm.set_ylabel('True')
+
+#                                 it_label = f"It.{last_it}T" if used_suffix == "T" else f"It.{last_it}"
+#                                 ax_cm.set_title(f'Confusion Matrix — {proj} ({it_label})')
+
+#                                 for i in range(cm.shape[0]):
+#                                     for j in range(cm.shape[1]):
+#                                         ax_cm.text(j, i, str(int(cm.iloc[i, j])), ha='center', va='center')
+
+#                                 cbar = plt.colorbar(im, ax=ax_cm, fraction=0.046, pad=0.04)
+#                                 cbar.set_label('Contagem', rotation=90)
+
+#                                 plt.tight_layout(rect=[0, 0, 0.80, 1])
+#                                 fig_cm = plt.gcf()
+#                                 fig_cm.subplots_adjust(right=0.78)
+
+#                                 legend_text_cm = (
+#                                     "LEGENDA DE CORES\n\n"
+#                                     "Quase branco → 0 (ou muito baixo)\n"
+#                                     "Laranja → valores médios\n"
+#                                     "Vermelho → valores mais altos"
+#                                 )
+#                                 fig_cm.text(0.82, 0.5, legend_text_cm, va='center', ha='left', fontsize=9)
+
+#                                 plt.savefig(cm_png_path, bbox_inches='tight', pad_inches=0.25)
+#                                 plt.close()
+#         except Exception:
+#             pass
+
+#         # ------------------ resposta ------------------
+#         return jsonify({
+#             "message": "Resumo estatístico gerado com sucesso.",
+#             "category_column": cat_col,
+#             "category_order_used": categories,
+#             "categorized_csv": categorized_csv,
+#             "totals_csv": totals_csv,
+#             "totals_pdf": totals_pdf_path,
+#             "clusters_pdf": clusters_pdf_path,
+#             "concatenated_results_txt": concatenated_txt_path,
+#             "method_performance_pdf": method_perf_pdf_path,
+#             "method_performance_tex": method_perf_tex_path,
+#             "method_performance_png": os.path.join(base, 'method_performance.png'),
+#             "method_performance_small_png": os.path.join(base, 'method_performance_small.png'),
+#             "concatenated_results_pdf": os.path.join(base, 'concatenated_results.pdf'),
+#             "final_summary_pdf": os.path.join(base, 'final_summary.pdf'),
+#             "aggregated_results_pdf": os.path.join(base, 'aggregated_results.pdf'),
+#             "aggregated_results_png": os.path.join(base, 'aggregated_results.png'),
+#             "confusion_matrix_csv": os.path.join(base, 'confusion_matrix.csv'),
+#             "confusion_matrix_tex": os.path.join(base, 'confusion_matrix.tex'),
+#             "confusion_matrix_png": os.path.join(base, 'confusion_matrix.png')
+#         }), 200
+
+#     except Exception as e:
+#         return jsonify({"message": f"Erro interno: {e}"}), 500
 
 
 
