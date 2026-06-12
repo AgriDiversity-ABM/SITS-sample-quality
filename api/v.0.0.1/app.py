@@ -3678,15 +3678,15 @@ def occupancy_rate_by_size():
 ########################################################################################################
 
 
-
-
+########################################################################################################
+###################### CÓDIGO USADO PARA GERAR Figure_9.png
 ########################################################################################################
 # curl -X POST http://127.0.0.1:5000/mapping_original_labels \
 #   -F "project_name=ssf.25x25" \
-#   -F "csv_file=@/home/alex/Downloads/github/improving_crop_identification__rest/projs/ssf.25x25/01_standard_scaler/20251102014806_ssf.25x25_standard_scaler.csv;type=text/csv" \
-#   -F "use_predicted_bmus=false" \
-#   -F "with_indexes=true" \
-#   -F "label_name=Cultura" \
+#   -F "iteration_number=3" \
+#   -F "use_predicted_bmus=true" \
+#   -F "with_indexes=false" \
+#   -F "label_name=label" \
 #   -F "dimensions=25x25" \
 #   -F "sigma=1" \
 #   -F "learning_rate=0.5" \
@@ -11778,6 +11778,8 @@ def step_02__clusterize():
 #      O primeiro valor deve ser igual a 1, e apresentar incrementos de 1 em 1 até o último registro,
 #      de maneira que o último registro possua como valor a quantidade total de registros.=     
 
+
+
 @app.route('/step_03__build_the_exclusion_map_and_exclude', methods=['POST'])
 def step_03__build_the_exclusion_map_and_exclude():
     """
@@ -12436,123 +12438,18 @@ def step_03__build_the_exclusion_map_and_exclude():
 
 
         
-        def draw_neural_grid_color_legend(fig, ax_grid, handles, labels,
-                                          x_gap=0.02, width=0.12,
-                                          height_ratio=0.70, font_size=10):
-            """
-            Desenha a legenda das cores da grade neural.
-            A largura do retângulo é ajustada automaticamente para não sobrepor textos.
-            """
-            if not handles or not labels:
-                return
-        
-            fig.canvas.draw()
-            renderer = fig.canvas.get_renderer()
-        
-            grid_bbox = ax_grid.get_window_extent().transformed(fig.transFigure.inverted())
-        
-            leg_h = grid_bbox.height * height_ratio
-            leg_y = grid_bbox.y0 + (grid_bbox.height - leg_h) / 2.0
-            leg_x = grid_bbox.x1 + x_gap
-        
-            # ----------------------------------------------------------
-            # Mede automaticamente o maior texto da legenda
-            # ----------------------------------------------------------
-            max_text_width_fig = 0.0
-        
-            for lab in labels:
-                tmp_text = fig.text(
-                    0, 0, str(lab),
-                    fontsize=font_size,
-                    alpha=0
-                )
-                bbox = tmp_text.get_window_extent(renderer=renderer)
-                bbox_fig = bbox.transformed(fig.transFigure.inverted())
-                max_text_width_fig = max(max_text_width_fig, bbox_fig.width)
-                tmp_text.remove()
-        
-            # largura dos elementos internos da legenda
-            box_x = 0.03
-            box_w = 0.12
-            text_x = 0.20
-            right_padding = 0.06
-        
-            # converte a largura necessária para coordenadas da figura
-            needed_width = (
-                width * text_x +
-                max_text_width_fig +
-                width * right_padding
-            )
-        
-            # garante largura mínima e amplia se o texto exigir
-            leg_w = max(width, needed_width)
-        
-            ax_leg = fig.add_axes([leg_x, leg_y, leg_w, leg_h])
-            ax_leg.set_xlim(0, 1)
-            ax_leg.set_ylim(0, 1)
-            ax_leg.axis('off')
-        
-            n = len(labels)
-            if n == 1:
-                ys = [0.5]
-            else:
-                ys = np.linspace(0.96, 0.04, n)
-        
-            box_h = min(0.055, 0.70 / max(n, 1))
-        
-            for y, h, lab in zip(ys, handles, labels):
-                face = h.get_facecolor()
-                edge = h.get_edgecolor()
-                lw = h.get_linewidth()
-        
-                ax_leg.add_patch(Rectangle(
-                    (box_x, y - box_h / 2),
-                    box_w,
-                    box_h,
-                    transform=ax_leg.transAxes,
-                    facecolor=face,
-                    edgecolor=edge,
-                    linewidth=lw
-                ))
-        
-                ax_leg.text(
-                    text_x, y, str(lab),
-                    transform=ax_leg.transAxes,
-                    ha='left',
-                    va='center',
-                    fontsize=font_size,
-                    color='black'
-                )
-        
-            # ----------------------------------------------------------
-            # Retângulo tracejado desenhado POR ÚLTIMO,
-            # já com a largura automaticamente ajustada
-            # ----------------------------------------------------------
-            ax_leg.add_patch(Rectangle(
-                (0.0, 0.0),
-                1.0,
-                1.0,
-                transform=ax_leg.transAxes,
-                facecolor='none',
-                edgecolor='black',
-                linewidth=3,
-                linestyle='--',
-                zorder=20
-            ))
-
         # def draw_neural_grid_color_legend(fig, ax_grid, handles, labels,
         #                                   x_gap=0.02, width=0.12,
         #                                   height_ratio=0.70, font_size=10):
         #     """
-        #     Desenha a legenda das cores da grade neural com altura proporcional
-        #     à altura real da grade neural.
-        
-        #     height_ratio=0.70 significa: legenda com 70% da altura da grade.
+        #     Desenha a legenda das cores da grade neural.
+        #     A largura do retângulo é ajustada automaticamente para não sobrepor textos.
         #     """
         #     if not handles or not labels:
         #         return
         
         #     fig.canvas.draw()
+        #     renderer = fig.canvas.get_renderer()
         
         #     grid_bbox = ax_grid.get_window_extent().transformed(fig.transFigure.inverted())
         
@@ -12560,21 +12457,42 @@ def step_03__build_the_exclusion_map_and_exclude():
         #     leg_y = grid_bbox.y0 + (grid_bbox.height - leg_h) / 2.0
         #     leg_x = grid_bbox.x1 + x_gap
         
-        #     ax_leg = fig.add_axes([leg_x, leg_y, width, leg_h])
+        #     # ----------------------------------------------------------
+        #     # Mede automaticamente o maior texto da legenda
+        #     # ----------------------------------------------------------
+        #     max_text_width_fig = 0.0
+        
+        #     for lab in labels:
+        #         tmp_text = fig.text(
+        #             0, 0, str(lab),
+        #             fontsize=font_size,
+        #             alpha=0
+        #         )
+        #         bbox = tmp_text.get_window_extent(renderer=renderer)
+        #         bbox_fig = bbox.transformed(fig.transFigure.inverted())
+        #         max_text_width_fig = max(max_text_width_fig, bbox_fig.width)
+        #         tmp_text.remove()
+        
+        #     # largura dos elementos internos da legenda
+        #     box_x = 0.03
+        #     box_w = 0.12
+        #     text_x = 0.20
+        #     right_padding = 0.06
+        
+        #     # converte a largura necessária para coordenadas da figura
+        #     needed_width = (
+        #         width * text_x +
+        #         max_text_width_fig +
+        #         width * right_padding
+        #     )
+        
+        #     # garante largura mínima e amplia se o texto exigir
+        #     leg_w = max(width, needed_width)
+        
+        #     ax_leg = fig.add_axes([leg_x, leg_y, leg_w, leg_h])
         #     ax_leg.set_xlim(0, 1)
         #     ax_leg.set_ylim(0, 1)
-        #     ax_leg.axis('off')            
-        #     ax_leg.add_patch(Rectangle(
-        #         (0.0, 0.0),
-        #         1.0,
-        #         1.0,
-        #         transform=ax_leg.transAxes,
-        #         facecolor='none',
-        #         edgecolor='black',
-        #         linewidth=3,
-        #         linestyle='--'
-        #     ))            
-            
+        #     ax_leg.axis('off')
         
         #     n = len(labels)
         #     if n == 1:
@@ -12582,10 +12500,7 @@ def step_03__build_the_exclusion_map_and_exclude():
         #     else:
         #         ys = np.linspace(0.96, 0.04, n)
         
-        #     box_x = 0.03
-        #     box_w = 0.12
         #     box_h = min(0.055, 0.70 / max(n, 1))
-        #     text_x = 0.20
         
         #     for y, h, lab in zip(ys, handles, labels):
         #         face = h.get_facecolor()
@@ -12605,10 +12520,110 @@ def step_03__build_the_exclusion_map_and_exclude():
         #         ax_leg.text(
         #             text_x, y, str(lab),
         #             transform=ax_leg.transAxes,
-        #             ha='left', va='center',
+        #             ha='left',
+        #             va='center',
         #             fontsize=font_size,
         #             color='black'
         #         )
+        
+        #     # ----------------------------------------------------------
+        #     # Retângulo tracejado desenhado POR ÚLTIMO,
+        #     # já com a largura automaticamente ajustada
+        #     # ----------------------------------------------------------
+        #     ax_leg.add_patch(Rectangle(
+        #         (0.0, 0.0),
+        #         1.0,
+        #         1.0,
+        #         transform=ax_leg.transAxes,
+        #         facecolor='none',
+        #         edgecolor='black',
+        #         linewidth=3,
+        #         linestyle='--',
+        #         zorder=20
+        #     ))
+
+
+
+        def draw_neural_grid_color_legend(fig, ax_grid, handles, labels,
+                                          x_gap=0.02, width=0.12,
+                                          height_ratio=0.70, font_size=10):
+            """
+            Desenha a legenda das cores à direita da grade.
+            O retângulo tracejado aumenta automaticamente conforme o maior texto.
+            """
+            if not handles or not labels:
+                return
+        
+            fig.canvas.draw()
+            renderer = fig.canvas.get_renderer()
+        
+            grid_bbox = ax_grid.get_window_extent().transformed(fig.transFigure.inverted())
+        
+            leg_h = grid_bbox.height * height_ratio
+            leg_y = grid_bbox.y0 + (grid_bbox.height - leg_h) / 2.0
+            leg_x = grid_bbox.x1 + x_gap
+        
+            max_text_width_fig = 0.0
+            for lab in labels:
+                tmp = fig.text(0, 0, str(lab), fontsize=font_size, alpha=0)
+                bbox = tmp.get_window_extent(renderer=renderer)
+                bbox_fig = bbox.transformed(fig.transFigure.inverted())
+                max_text_width_fig = max(max_text_width_fig, bbox_fig.width)
+                tmp.remove()
+        
+            box_x = 0.03
+            box_w = 0.12
+            text_x = 0.20
+            right_padding = 0.08
+        
+            needed_width = (
+                width * text_x +
+                max_text_width_fig +
+                width * right_padding
+            )
+        
+            leg_w = max(width, needed_width)
+        
+            ax_leg = fig.add_axes([leg_x, leg_y, leg_w, leg_h])
+            ax_leg.set_xlim(0, 1)
+            ax_leg.set_ylim(0, 1)
+            ax_leg.axis('off')
+        
+            n = len(labels)
+            ys = [0.5] if n == 1 else np.linspace(0.96, 0.04, n)
+            box_h = min(0.055, 0.70 / max(n, 1))
+        
+            for y, h, lab in zip(ys, handles, labels):
+                ax_leg.add_patch(Rectangle(
+                    (box_x, y - box_h / 2),
+                    box_w,
+                    box_h,
+                    transform=ax_leg.transAxes,
+                    facecolor=h.get_facecolor(),
+                    edgecolor=h.get_edgecolor(),
+                    linewidth=h.get_linewidth()
+                ))
+        
+                ax_leg.text(
+                    text_x, y, str(lab),
+                    transform=ax_leg.transAxes,
+                    ha='left',
+                    va='center',
+                    fontsize=font_size,
+                    color='black'
+                )
+        
+            ax_leg.add_patch(Rectangle(
+                (0.0, 0.0),
+                1.0,
+                1.0,
+                transform=ax_leg.transAxes,
+                facecolor='none',
+                edgecolor='black',
+                linewidth=3,
+                linestyle='--',
+                zorder=20
+            ))
                 
 
         # ---------------- função p/ desenhar legenda "BOUNDED AREAS" ----------------
@@ -12818,6 +12833,47 @@ def step_03__build_the_exclusion_map_and_exclude():
             class_legend_labels = ['Unused'] + [p.get_label() for p in class_patches]
 
             # SUMMARY (como antes)
+            
+            def draw_summary_below_grid(fig, ax_grid, summary_rows):
+                """
+                Desenha o SUMMARY sempre abaixo da grade neural,
+                evitando sobreposição com a legenda lateral.
+                """
+                fig.canvas.draw()
+            
+                grid_bbox = ax_grid.get_window_extent().transformed(fig.transFigure.inverted())
+            
+                sum_w = min(0.30, grid_bbox.width * 0.42)
+                sum_h = 0.18
+            
+                sum_x = grid_bbox.x0 + (grid_bbox.width - sum_w) / 2.0
+                sum_y = max(0.01, grid_bbox.y0 - sum_h - 0.04)
+            
+                ax_sum = fig.add_axes([sum_x, sum_y, sum_w, sum_h])
+                ax_sum.axis('off')
+            
+                ax_sum.text(
+                    0.5, 1.02, 'SUMMARY',
+                    transform=ax_sum.transAxes,
+                    ha='center',
+                    va='bottom',
+                    fontsize=14,
+                    fontweight='bold'
+                )
+            
+                tbl_sum = ax_sum.table(
+                    cellText=summary_rows,
+                    colLabels=None,
+                    colWidths=[0.60, 0.35],
+                    cellLoc='left',
+                    loc='upper center'
+                )
+            
+                tbl_sum.auto_set_font_size(False)
+                tbl_sum.set_fontsize(12)
+            
+                return ax_sum            
+            
             perc_kept    = round(sum_kept / total_before * 100, 2) if total_before else 0.0
             perc_removed = round(sum_removed / total_before * 100, 2) if total_before else 0.0
             perc_flagged = round(sum_flagged / total_before * 100, 2) if total_before else 0.0
@@ -12830,15 +12886,8 @@ def step_03__build_the_exclusion_map_and_exclude():
                 ['Flagged',     f'{sum_flagged}'],
                 ['% Flagged',   f'{perc_flagged}'],
             ]
-            # ax_sum = fig.add_axes([0.84, 0.18, 0.14, 0.32])
-            ax_sum = fig.add_axes([1.00, 0.18, 0.14, 0.32])
-            ax_sum.axis('off')
-            ax_sum.text(0.5, 1.02, 'SUMMARY', transform=ax_sum.transAxes,
-                        ha='center', va='bottom', fontsize=14, fontweight='bold')
-            tbl_sum = ax_sum.table(cellText=summary_rows, colLabels=None,
-                                   colWidths=[0.9, 0.52], cellLoc='left', loc='upper left')
-            tbl_sum.auto_set_font_size(False)
-            tbl_sum.set_fontsize(12)
+            
+            draw_summary_below_grid(fig, ax, summary_rows)
 
             # neurônios descartados, vizinhos e focais (ANTES do contorno do cluster)
             draw_highlighted_neurons(
@@ -12871,7 +12920,7 @@ def step_03__build_the_exclusion_map_and_exclude():
             ax.set_aspect('equal')
 
             # ---------- AJUSTE DE LAYOUT COMUM AOS DOIS PNGs ----------
-            plt.subplots_adjust(right=0.82, top=0.93)
+            plt.subplots_adjust(right=0.82, top=0.93, bottom=0.22)
             
             draw_neural_grid_color_legend(
                 fig,
@@ -13146,21 +13195,8 @@ def step_03__build_the_exclusion_map_and_exclude():
                                           ha='center', va='center', fontsize=indexes_font,
                                           color='black', fontweight='normal', zorder=6)
 
-                    # SUMMARY (mesmo do primeiro PNG)
-                    # ax_sum_p = fig_p.add_axes([0.84, 0.18, 0.14, 0.32])
-                    ax_sum_p = fig_p.add_axes([1.00, 0.18, 0.14, 0.32])
-                    ax_sum_p.axis('off')
-                    ax_sum_p.text(0.5, 1.02, 'SUMMARY', transform=ax_sum_p.transAxes,
-                                  ha='center', va='bottom', fontsize=14, fontweight='bold')
-                    tbl_sum_p = ax_sum_p.table(
-                        cellText=summary_rows,
-                        colLabels=None,
-                        colWidths=[0.9, 0.52],
-                        cellLoc='left',
-                        loc='upper left'
-                    )
-                    tbl_sum_p.auto_set_font_size(False)
-                    tbl_sum_p.set_fontsize(12)
+                    # SUMMARY (mesmo do primeiro PNG)                    
+                    draw_summary_below_grid(fig_p, ax_p, summary_rows)
 
                     # neurônios descartados, vizinhos e focais (ANTES do contorno do cluster)
                     draw_highlighted_neurons(
@@ -13192,7 +13228,7 @@ def step_03__build_the_exclusion_map_and_exclude():
                     ax_p.set_ylim(-0.5, map_rows*y_off_p + y_off_p/2)
                     ax_p.set_aspect('equal')
 
-                    plt.subplots_adjust(right=0.82, top=0.93)
+                    plt.subplots_adjust(right=0.82, top=0.93, bottom=0.22)
                     
                     draw_neural_grid_color_legend(
                         fig_p,
@@ -13714,6 +13750,1947 @@ def step_03__build_the_exclusion_map_and_exclude():
         err={"message":f"Erro interno: {e}"}
         return Response(json.dumps(err,indent=2,ensure_ascii=False),
                         mimetype='application/json'),500
+
+
+
+
+
+# @app.route('/step_03__build_the_exclusion_map_and_exclude', methods=['POST'])
+# def step_03__build_the_exclusion_map_and_exclude():
+#     """
+#     3º passo: monta o mapa de exclusões conforme inferência bayesiana
+#     e gera:
+#       - exclusion_map.csv
+#       - data_<it>.csv
+#       - kept_removed_flagged.png
+#       - kept_removed_flagged.pdf
+#       - kept_removed_flagged.csv
+
+#     (Restaurado, sem alterar a lógica já existente:)
+#       - data_<it-1>_to_<it>_general_summary.csv
+#       - data_<it-1>_to_<it>_categorized_summary.csv
+#       - data_<it-1>_to_<it>_categorized_summary.png
+#       - data_<it-1>_to_<it>_categorized_representativeness.png
+
+#     Parâmetros extras opcionais (apenas aspecto visual dos mapas):
+#       - with_indexes (bool)         : se 'true', escreve (RR,CC) dentro dos neurônios
+#       - indexes_font (int > 0)      : obrigatório se with_indexes=true
+#       - cluster_color (str, hex)    : cor do contorno do cluster (ex: "#ff0000")
+#       - cluster_width (float > 0)   : espessura da linha do contorno
+
+#       - focal_neuron_numbers   (opcional): string com inteiros separados por vírgula,
+#                                            em quantidade PAR, representando pares (RR,CC)
+#                                            de neurônios focais (1-based)
+#       - focal_neuron_color     (opcional): cor da borda dos neurônios focais, ex: "#ffff00"
+#       - focal_neuron_width     (opcional): espessura da borda dos neurônios focais (float)
+
+#       - neighboring_neurons_numbers (opcional): string com inteiros separados por vírgula,
+#                                                em quantidade PAR, representando pares (RR,CC)
+#                                                de neurônios vizinhos (1-based)
+#       - neighboring_neurons_color   (opcional): cor da borda desses neurônios
+#       - neighboring_neurons_width   (opcional): espessura da borda desses neurônios (float)
+
+#       - discarded_neighbor_numbers (opcional): string com inteiros separados por vírgula,
+#                                                em quantidade PAR, representando pares (RR,CC)
+#                                                de neurônios descartados (1-based)
+#       - discarded_neighbor_color   (opcional): cor da borda desses neurônios descartados
+#       - discarded_neighbor_width   (opcional): espessura da borda desses neurônios descartados (float)
+
+#       - bounded_areas_legend_font  (opcional): tamanho da fonte (int > 0) usado em todos
+#                                                os rótulos da legenda "BOUNDED AREAS"
+#       - bounded_areas_legend_width (opcional): largura, em pixels (int > 0), das linhas
+#                                                desenhadas na legenda "BOUNDED AREAS"
+
+#       - files (opcional): formatos de figuras gerados pela subrotina
+#                            save_png_svg_pdf_eps. Ex.: "png", "png,svg",
+#                            "png,svg,eps,pdf". Se omitido, o parâmetro também
+#                            é omitido nas chamadas internas, preservando o
+#                            comportamento atual do pipeline.
+
+#     Obs.: o cluster é lido de:
+#       ./projs/<project_name>/12_method/step_02/cluster_<iteration_number>/selected_cluster.csv
+#     """
+#     try:
+#         import os, pickle, json, math, random
+#         import numpy as np
+#         import pandas as pd
+#         import matplotlib
+#         matplotlib.use('Agg')
+#         import matplotlib.pyplot as plt
+#         from flask import request, Response
+#         from datetime import datetime
+#         from matplotlib.patches import RegularPolygon, Polygon, Patch, Rectangle
+#         from matplotlib.lines import Line2D
+#         from matplotlib.legend_handler import HandlerTuple
+#         from matplotlib.backends.backend_pdf import PdfPages
+#         from matplotlib.colors import to_hex, to_rgba  # garante import p/ colors.csv
+
+#         # ==================== PARÂMETROS ====================
+#         for p in ('project_name','iteration_number','prior_threshold',
+#                   'posterior_threshold','column_key','category_column'):
+#             if p not in request.form:
+#                 return Response(json.dumps({"message": f"Parâmetro '{p}' ausente."},
+#                                            indent=2, ensure_ascii=False),
+#                                 mimetype='application/json'), 400
+
+#         proj      = request.form['project_name']
+#         it        = int(request.form['iteration_number'])
+#         tau_c     = float(request.form['prior_threshold'])
+#         tau_p     = float(request.form['posterior_threshold'])
+#         key       = request.form['column_key']
+#         cat_col   = request.form['category_column']
+#         prefix    = f"{proj}.It{it}"
+
+#         base     = os.path.join('.', 'projs', proj, '12_method')
+#         data_dir = os.path.join(base, 'data')
+
+#         # ----------------- with_indexes / indexes_font -----------------
+        
+#         ############### SUBSTITUIR ISSO... ###############
+#         # with_indexes_raw = request.form.get('with_indexes', None)
+#         # with_indexes = False
+#         # indexes_font = None
+#         ################## POR ISSO... ###################
+#         with_indexes_raw = request.form.get('with_indexes', None)
+#         with_indexes = False
+#         indexes_font = None
+        
+#         # ----------------- show_krf -----------------
+#         # Controla a exibição das marcações Kept/Removed/Flagged
+#         # e da legenda associada nos mapas gerados.
+#         # Padrão: true, para preservar o comportamento atual.
+#         show_krf_raw = request.form.get('show_krf', 'true')
+#         show_krf = str(show_krf_raw).strip().lower() in ('true', '1', 'yes', 'y')                        
+#         ##################################################
+
+#         # ----------------- files -----------------
+#         # Controla quais formatos serão gerados por save_png_svg_pdf_eps.
+#         # Se omitido, também será omitido na chamada interna, preservando
+#         # a compatibilidade com todas as invocações atuais do pipeline.
+#         files_raw = request.form.get('files', None)
+
+#         def _save_artwork(fig_obj, png_output_path):
+#             if files_raw is None or str(files_raw).strip() == '':
+#                 save_png_svg_pdf_eps(fig_obj, png_output_path)
+#             else:
+#                 save_png_svg_pdf_eps(fig_obj, png_output_path, files=files_raw)
+        
+        
+#         if with_indexes_raw is not None:
+#             with_indexes = str(with_indexes_raw).strip().lower() in ('true', '1', 'yes', 'y')
+#             if with_indexes:
+#                 if 'indexes_font' not in request.form:
+#                     err = {"message": "Parâmetro 'indexes_font' é obrigatório quando with_indexes=true."}
+#                     return Response(json.dumps(err, indent=2, ensure_ascii=False),
+#                                     mimetype='application/json'), 400
+#                 try:
+#                     indexes_font = int(str(request.form['indexes_font']).strip())
+#                     if indexes_font <= 0:
+#                         raise ValueError("indexes_font deve ser > 0")
+#                 except Exception as e_font:
+#                     err = {"message": f"Valor inválido para 'indexes_font': {e_font}"}
+#                     return Response(json.dumps(err, indent=2, ensure_ascii=False),
+#                                     mimetype='application/json'), 400
+
+#         # ----------------- cluster_color / cluster_width -----------------
+#         cluster_color_raw = request.form.get('cluster_color', None)
+#         cluster_width_raw = request.form.get('cluster_width', None)
+#         highlight_cluster = False
+#         cluster_color = None
+#         cluster_width = None
+#         cluster_cells = set()  # conjunto de neurônios (linha,coluna) 0-based
+
+#         any_cluster_param = (
+#             cluster_color_raw is not None and str(cluster_color_raw).strip() != ''
+#         ) or (
+#             cluster_width_raw is not None and str(cluster_width_raw).strip() != ''
+#         )
+
+#         if any_cluster_param:
+#             if not cluster_color_raw or not str(cluster_color_raw).strip():
+#                 err = {"message": "Se 'cluster_width' for informado, 'cluster_color' também deve ser informado."}
+#                 return Response(json.dumps(err, indent=2, ensure_ascii=False),
+#                                 mimetype='application/json'), 400
+#             if not cluster_width_raw or not str(cluster_width_raw).strip():
+#                 err = {"message": "Se 'cluster_color' for informado, 'cluster_width' também deve ser informado."}
+#                 return Response(json.dumps(err, indent=2, ensure_ascii=False),
+#                                 mimetype='application/json'), 400
+#             try:
+#                 cluster_width = float(str(cluster_width_raw).strip())
+#                 if cluster_width <= 0:
+#                     raise ValueError("cluster_width deve ser > 0")
+#                 cluster_color = str(cluster_color_raw).strip()
+#                 highlight_cluster = True
+#             except Exception as e_cw:
+#                 err = {"message": f"Parâmetros inválidos para destaque de cluster: {e_cw}"}
+#                 return Response(json.dumps(err, indent=2, ensure_ascii=False),
+#                                 mimetype='application/json'), 400
+
+#         # conjuntos de neurônios focais / vizinhos (preenchidos depois de conhecer n_rows,n_cols)
+#         focal_coords = []
+#         focal_color  = None
+#         focal_width  = None
+
+#         neighboring_coords = []
+#         neighboring_color  = None
+#         neighboring_width  = None
+
+#         # NOVO: conjuntos de neurônios descartados (mesma lógica dos focais)
+#         discarded_coords = []
+#         discarded_color  = None
+#         discarded_width  = None
+
+#         # ----------------- parâmetros da legenda BOUNDED AREAS -----------------
+#         bounded_font_raw  = request.form.get('bounded_areas_legend_font', None)
+#         bounded_width_raw = request.form.get('bounded_areas_legend_width', None)
+
+#         bounded_areas_legend_font  = None
+#         bounded_areas_legend_width = None   # em pixels
+
+#         if bounded_font_raw is not None and str(bounded_font_raw).strip() != '':
+#             try:
+#                 bounded_areas_legend_font = int(str(bounded_font_raw).strip())
+#                 if bounded_areas_legend_font <= 0:
+#                     raise ValueError("bounded_areas_legend_font deve ser > 0")
+#             except Exception as e_bf:
+#                 err = {"message": f"Valor inválido para 'bounded_areas_legend_font': {e_bf}"}
+#                 return Response(json.dumps(err, indent=2, ensure_ascii=False),
+#                                 mimetype='application/json'), 400
+
+#         if bounded_width_raw is not None and str(bounded_width_raw).strip() != '':
+#             try:
+#                 bounded_areas_legend_width = float(str(bounded_width_raw).strip())
+#                 if bounded_areas_legend_width <= 0:
+#                     raise ValueError("bounded_areas_legend_width deve ser > 0")
+#             except Exception as e_bw:
+#                 err = {"message": f"Valor inválido para 'bounded_areas_legend_width': {e_bw}"}
+#                 return Response(json.dumps(err, indent=2, ensure_ascii=False),
+#                                 mimetype='application/json'), 400
+
+#         # ==================== DADOS ====================
+#         prev_csv = os.path.join(data_dir, f'data_{it-1}.csv')
+#         df_data  = pd.read_csv(prev_csv)
+
+#         step02 = os.path.join(base,'step_02',f'cluster_{it}')
+#         df_pred = pd.read_csv(os.path.join(step02,'predicted_labels.csv'))
+#         cluster_obj = pickle.load(open(os.path.join(step02,'cluster.pkl'),'rb'))
+
+#         som = pickle.load(open(os.path.join(base,'step_01',f'som_{it}','som.pkl'),'rb'))
+#         n_rows,n_cols,_ = som.get_weights().shape
+
+#         if hasattr(cluster_obj, 'labels_'):
+#             cmap = cluster_obj.labels_.reshape(n_rows,n_cols)
+#         else:
+#             cmap = np.array(cluster_obj).reshape(n_rows,n_cols)
+
+#         # ---------- se for desenhar cluster, carregar selected_cluster.csv ----------
+#         if highlight_cluster:
+#             sel_path = os.path.join(step02, 'selected_cluster.csv')
+#             if os.path.exists(sel_path):
+#                 try:
+#                     df_sel = pd.read_csv(sel_path)
+#                     if not {'RR','CC'}.issubset(df_sel.columns):
+#                         print("[Aviso] selected_cluster.csv não possui colunas RR e CC. Ignorando destaque.")
+#                         highlight_cluster = False
+#                     else:
+#                         for rr, cc in zip(df_sel['RR'], df_sel['CC']):
+#                             try:
+#                                 r0 = int(rr) - 1
+#                                 c0 = int(cc) - 1
+#                                 if 0 <= r0 < n_rows and 0 <= c0 < n_cols:
+#                                     cluster_cells.add((r0, c0))
+#                             except Exception:
+#                                 continue
+#                         if not cluster_cells:
+#                             print("[Aviso] selected_cluster.csv vazio ou inválido. Ignorando destaque.")
+#                             highlight_cluster = False
+#                 except Exception as e_sel:
+#                     print(f"[Aviso] Falha ao ler selected_cluster.csv ({e_sel}). Ignorando destaque.")
+#                     highlight_cluster = False
+#             else:
+#                 print("[Aviso] selected_cluster.csv não encontrado. Ignorando destaque.")
+#                 highlight_cluster = False
+
+#         # ---------- parâmetros dos neurônios focais ----------
+#         focal_numbers_raw = request.form.get('focal_neuron_numbers', None)
+#         focal_color_raw   = request.form.get('focal_neuron_color', None)
+#         focal_width_raw   = request.form.get('focal_neuron_width', None)
+
+#         focal_params = [focal_numbers_raw, focal_color_raw, focal_width_raw]
+#         focal_count = sum(v is not None and str(v).strip() != '' for v in focal_params)
+
+#         if focal_count not in (0, 3):
+#             print("[Aviso] Parâmetros de neurônios focais "
+#                   "('focal_neuron_numbers', 'focal_neuron_color', 'focal_neuron_width') "
+#                   "devem ser usados juntos. Ignorando neurônios focais.")
+#         elif focal_count == 3:
+#             try:
+#                 nums = [s.strip() for s in str(focal_numbers_raw).split(',') if s.strip() != '']
+#                 if len(nums) == 0 or len(nums) % 2 != 0:
+#                     raise ValueError("focal_neuron_numbers deve conter quantidade PAR de inteiros >= 2.")
+
+#                 ints = [int(v) for v in nums]
+#                 pairs = []
+#                 for i_pair in range(0, len(ints), 2):
+#                     rr = ints[i_pair]
+#                     cc = ints[i_pair+1]
+#                     if not (1 <= rr <= n_rows and 1 <= cc <= n_cols):
+#                         raise ValueError(f"Par (RR,CC)=({rr},{cc}) fora da grade {n_rows}x{n_cols}.")
+#                     pairs.append((rr-1, cc-1))  # zero-based
+#                 focal_coords = pairs
+#                 focal_color  = str(focal_color_raw).strip()
+#                 focal_width  = float(str(focal_width_raw).strip())
+#             except Exception as e_focal:
+#                 print(f"[Aviso] Falha ao interpretar parâmetros de neurônios focais: {e_focal}. "
+#                       f"Ignorando neurônios focais.")
+#                 focal_coords = []
+#                 focal_color  = None
+#                 focal_width  = None
+
+#         # ---------- parâmetros dos neurônios vizinhos ----------
+#         neigh_numbers_raw = request.form.get('neighboring_neurons_numbers', None)
+#         neigh_color_raw   = request.form.get('neighboring_neurons_color', None)
+#         neigh_width_raw   = request.form.get('neighboring_neurons_width', None)
+
+#         neigh_params = [neigh_numbers_raw, neigh_color_raw, neigh_width_raw]
+#         neigh_count = sum(v is not None and str(v).strip() != '' for v in neigh_params)
+
+#         if neigh_count not in (0, 3):
+#             print("[Aviso] Parâmetros de neurônios vizinhos "
+#                   "('neighboring_neurons_numbers', 'neighboring_neurons_color', 'neighboring_neurons_width') "
+#                   "devem ser usados juntos. Ignorando neurônios vizinhos.")
+#         elif neigh_count == 3:
+#             try:
+#                 nums = [s.strip() for s in str(neigh_numbers_raw).split(',') if s.strip() != '']
+#                 if len(nums) == 0 or len(nums) % 2 != 0:
+#                     raise ValueError("neighboring_neurons_numbers deve conter quantidade PAR de inteiros >= 2.")
+
+#                 ints = [int(v) for v in nums]
+#                 pairs = []
+#                 for i_pair in range(0, len(ints), 2):
+#                     rr = ints[i_pair]
+#                     cc = ints[i_pair+1]
+#                     if not (1 <= rr <= n_rows and 1 <= cc <= n_cols):
+#                         raise ValueError(f"Par (RR,CC)=({rr},{cc}) fora da grade {n_rows}x{n_cols}.")
+#                     pairs.append((rr-1, cc-1))  # zero-based
+#                 neighboring_coords = pairs
+#                 neighboring_color  = str(neigh_color_raw).strip()
+#                 neighboring_width  = float(str(neigh_width_raw).strip())
+#             except Exception as e_nn:
+#                 print(f"[Aviso] Falha ao interpretar parâmetros de neurônios vizinhos: {e_nn}. "
+#                       f"Ignorando neurônios vizinhos.")
+#                 neighboring_coords = []
+#                 neighboring_color  = None
+#                 neighboring_width  = None
+
+#         # ---------- NOVOS parâmetros dos neurônios descartados ----------
+#         discarded_numbers_raw = request.form.get('discarded_neighbor_numbers', None)
+#         discarded_color_raw   = request.form.get('discarded_neighbor_color', None)
+#         discarded_width_raw   = request.form.get('discarded_neighbor_width', None)
+
+#         discarded_params = [discarded_numbers_raw, discarded_color_raw, discarded_width_raw]
+#         discarded_count = sum(v is not None and str(v).strip() != '' for v in discarded_params)
+
+#         if discarded_count not in (0, 3):
+#             print("[Aviso] Parâmetros de neurônios descartados "
+#                   "('discarded_neighbor_numbers', 'discarded_neighbor_color', 'discarded_neighbor_width') "
+#                   "devem ser usados juntos. Ignorando neurônios descartados.")
+#         elif discarded_count == 3:
+#             try:
+#                 nums = [s.strip() for s in str(discarded_numbers_raw).split(',') if s.strip() != '']
+#                 if len(nums) == 0 or len(nums) % 2 != 0:
+#                     raise ValueError("discarded_neighbor_numbers deve conter quantidade PAR de inteiros >= 2.")
+
+#                 ints = [int(v) for v in nums]
+#                 pairs = []
+#                 for i_pair in range(0, len(ints), 2):
+#                     rr = ints[i_pair]
+#                     cc = ints[i_pair+1]
+#                     if not (1 <= rr <= n_rows and 1 <= cc <= n_cols):
+#                         raise ValueError(f"Par (RR,CC)=({rr},{cc}) fora da grade {n_rows}x{n_cols}.")
+#                     pairs.append((rr-1, cc-1))  # zero-based
+#                 discarded_coords = pairs
+#                 discarded_color  = str(discarded_color_raw).strip()
+#                 discarded_width  = float(str(discarded_width_raw).strip())
+#             except Exception as e_disc:
+#                 print(f"[Aviso] Falha ao interpretar parâmetros de neurônios descartados: {e_disc}. "
+#                       f"Ignorando neurônios descartados.")
+#                 discarded_coords = []
+#                 discarded_color  = None
+#                 discarded_width  = None
+
+#         # ==================== INFERÊNCIA ====================
+#         df_pred['neuron'] = list(zip(df_pred.bmu_x, df_pred.bmu_y))
+#         grouped = df_pred.groupby(['neuron','label']).size()
+#         cnt = {k:int(v) for k,v in grouped.items()}
+
+#         actions = []
+#         for x,y,l,pos in zip(df_pred.bmu_x, df_pred.bmu_y, df_pred.label, df_pred.pos):
+#             neigh = [(x+dx,y+dy)
+#                      for dx in (-1,0,1) for dy in (-1,0,1)
+#                      if not (dx==0 and dy==0)
+#                      and 0<=x+dx<n_rows and 0<=y+dy<n_cols
+#                      and cmap[x+dx,y+dy]==cmap[x,y]]
+#             pre = [cnt.get((n,l),0) for n in neigh]
+#             m_prior = float(np.mean(pre)) if pre else 0.0
+#             var_prior = float(np.var(pre)) if len(pre)>1 else 1.0
+#             lik = cnt.get(((x,y),l),0)
+#             post = (m_prior/var_prior + lik)/(1/var_prior + 1) if var_prior>0 else m_prior
+
+#             if m_prior < tau_c:
+#                 actions.append('removed')
+#             elif post >= tau_p:
+#                 actions.append('kept')
+#             else:
+#                 actions.append('flagged')
+
+#         df_res = df_pred[['pos']].copy()
+#         df_res['action'] = actions
+
+#         # mapeamento do 'key' (sem alterar lógica de inferência)
+#         if key in df_pred.columns:
+#             df_res[key] = df_pred[key].values
+#         else:
+#             df_map = df_data.reset_index().rename(columns={'index':'pos'})[['pos', key]]
+#             df_tmp = df_res.merge(df_map, on='pos', how='left')
+
+#             if df_tmp[key].isna().any():
+#                 filled = df_tmp[key].copy()
+#                 for k_it in range(max(0, it-2), -1, -1):
+#                     try:
+#                         df_k = pd.read_csv(os.path.join(data_dir, f'data_{k_it}.csv'))
+#                         df_map_k = df_k.reset_index().rename(columns={'index':'pos'})[['pos', key]]
+#                         aux = df_res[['pos']].merge(df_map_k, on='pos', how='left')[key]
+#                         mask = filled.isna() & aux.notna()
+#                         if mask.any():
+#                             filled.loc[mask] = aux.loc[mask]
+#                         if filled.notna().all():
+#                             break
+#                     except Exception:
+#                         pass
+#                 df_tmp[key] = filled
+
+#             if df_tmp[key].isna().any():
+#                 df_tmp[key] = df_tmp[key].astype(object).where(df_tmp[key].notna(), '')
+
+#             df_res[key] = df_tmp[key].values
+
+#         # ==================== GRAVAÇÕES ====================
+#         out03 = os.path.join(base,'step_03',f'exclusion_map_{it}')
+#         os.makedirs(out03, exist_ok=True)
+
+#         # NÃO ALTERAR: exclusões
+#         excl = df_res[df_res.action=='removed'][[key]].copy()
+#         excl.to_csv(os.path.join(out03,'exclusion_map.csv'),
+#                     index=False, header=[key])
+
+#         # totais
+#         total_before = len(df_pred)
+#         sum_kept    = int((df_res.action=='kept').sum())
+#         sum_removed = int((df_res.action=='removed').sum())
+#         sum_flagged = int((df_res.action=='flagged').sum())
+
+#         # ==========================================================
+#         # DATASET UNIFICADO (agg) — base única p/ PNG, PDF e CSV
+#         # ==========================================================
+#         base_df = df_res.merge(
+#             df_pred[['pos','bmu_x','bmu_y']], on='pos', how='left', validate='one_to_one'
+#         )
+
+#         def _to_set(series):
+#             if series.empty:
+#                 return set()
+#             s = series.dropna()
+#             s = s[~(s.astype(str).str.strip() == '')]
+#             return set(s.tolist())
+
+#         agg = {}
+#         for (bx, by), g in base_df.groupby(['bmu_x','bmu_y']):
+#             agg[(int(bx), int(by))] = {
+#                 'kept':    _to_set(g.loc[g.action=='kept',    key]),
+#                 'removed': _to_set(g.loc[g.action=='removed', key]),
+#                 'flagged': _to_set(g.loc[g.action=='flagged', key]),
+#             }
+
+#         counts_tbl = (
+#             base_df
+#             .groupby(['bmu_x','bmu_y','action'])
+#             .size()
+#             .unstack(fill_value=0)
+#         )
+#         def _get_counts(bx, by):
+#             try:
+#                 row = counts_tbl.loc[(bx, by)]
+#             except KeyError:
+#                 return 0, 0, 0
+#             k = int(row.get('kept', 0))
+#             r = int(row.get('removed', 0))
+#             f = int(row.get('flagged', 0))
+#             return k, r, f
+
+#         # ==========================================================
+#         # Maioria + neurônios usados (cores/legenda) — ITERAÇÃO ATUAL
+#         # LENDO E RESPEITANDO colors.csv, SE EXISTIR
+#         # ==========================================================
+
+#         map_rows, map_cols = n_rows, n_cols
+
+#         majority_label_map: dict = {}
+#         label_to_color: dict = {}
+#         used_neurons: set = set()
+#         labels_map_pie: dict = {}
+
+#         def _norm_label(x):
+#             if pd.isna(x):
+#                 return ''
+#             return str(x).strip()
+
+#         # série de rótulos preferencialmente de df_pred['label']
+#         df_pred = df_pred.copy()
+#         if 'label' in df_pred.columns and not df_pred['label'].isna().all():
+#             labels_series = df_pred['label'].apply(_norm_label)
+#         elif cat_col in df_data.columns:
+#             tmp = df_pred[['pos']].merge(
+#                 df_data[[cat_col]].reset_index().rename(columns={'index': 'pos_idx'}),
+#                 left_on='pos', right_on='pos_idx', how='left'
+#             )
+#             labels_series = tmp[cat_col].apply(_norm_label)
+#             df_pred['label'] = labels_series
+#         else:
+#             labels_series = pd.Series([], dtype=object)
+
+#         df_pred['label_norm'] = labels_series
+#         valid_labels = df_pred['label_norm']
+#         valid_labels = valid_labels[valid_labels != '']
+#         unique_labels = sorted(set(valid_labels.tolist()), key=lambda x: str(x))
+
+#         # colors.csv
+#         colors_path = os.path.join('.', 'projs', proj, 'colors.csv')
+#         try:
+#             if os.path.exists(colors_path):
+#                 df_colors = pd.read_csv(colors_path)
+#                 for _, row_c in df_colors.iterrows():
+#                     lab_str = _norm_label(row_c.get('label', ''))
+#                     hex_str = str(row_c.get('hex', '')).strip()
+#                     if not lab_str or not hex_str:
+#                         continue
+#                     try:
+#                         rgba = to_rgba(hex_str)
+#                         label_to_color[lab_str] = rgba
+#                     except Exception:
+#                         continue
+#         except Exception as e_read_colors:
+#             print(f"[Aviso] Falha ao ler colors.csv: {e_read_colors}")
+
+#         if unique_labels:
+#             cmap_lbl = plt.cm.get_cmap('tab20', max(len(unique_labels), 1))
+#             color_idx = 0
+#             for lab in unique_labels:
+#                 if lab not in label_to_color:
+#                     rgba = cmap_lbl(color_idx % cmap_lbl.N)
+#                     label_to_color[lab] = rgba
+#                     color_idx += 1
+
+#         used_neurons = set(
+#             zip(df_pred['bmu_x'].astype(int), df_pred['bmu_y'].astype(int))
+#         )
+
+#         if 'label_norm' in df_pred.columns:
+#             counts_lbl = (
+#                 df_pred
+#                 .groupby(['bmu_x', 'bmu_y', 'label_norm'])
+#                 .size()
+#                 .reset_index(name='cnt')
+#             )
+#         else:
+#             counts_lbl = pd.DataFrame(columns=['bmu_x', 'bmu_y', 'label_norm', 'cnt'])
+
+#         for (bx, by), sub in counts_lbl.groupby(['bmu_x', 'bmu_y']):
+#             m = sub['cnt'].max()
+#             winners = sub[sub['cnt'] == m]['label_norm'].tolist()
+#             if winners:
+#                 majority_label_map[(int(bx), int(by))] = random.choice(winners)
+
+#         for _, row_p in counts_lbl.iterrows():
+#             bx = int(row_p['bmu_x'])
+#             by = int(row_p['bmu_y'])
+#             lab = _norm_label(row_p['label_norm'])
+#             cval = int(row_p['cnt'])
+#             key_p = (bx, by)
+#             if key_p not in labels_map_pie:
+#                 labels_map_pie[key_p] = {}
+#             labels_map_pie[key_p][lab] = cval
+
+#         # atualiza colors.csv
+#         try:
+#             if label_to_color:
+#                 rows_colors = []
+#                 for lab in sorted(label_to_color.keys(), key=lambda x: str(x)):
+#                     rgba = label_to_color[lab]
+#                     hex_color = to_hex(rgba, keep_alpha=False)
+#                     rows_colors.append({'label': _norm_label(lab), 'hex': hex_color})
+#                 pd.DataFrame(rows_colors).to_csv(
+#                     colors_path,
+#                     index=False,
+#                     encoding='utf-8-sig'
+#                 )
+#         except Exception as e_colors:
+#             print(f"[Aviso] Falha ao gravar colors.csv: {e_colors}")
+
+#         # ---------------- função p/ desenhar borda de neurônios específicos ----------------
+#         def draw_highlighted_neurons(ax, rows_map, cols_map, y_off_val,
+#                                      coords, color, width, zorder_val):
+#             if not coords or color is None or width is None:
+#                 return
+#             radius_hex = 0.5
+#             for (rr0, cc0) in coords:
+#                 if 0 <= rr0 < rows_map and 0 <= cc0 < cols_map:
+#                     x_off = 0.5 if (rr0 % 2) else 0.0
+#                     cx, cy = (cc0 + x_off, (rows_map - 1 - rr0) * y_off_val)
+#                     border_patch = RegularPolygon(
+#                         xy=(cx, cy), numVertices=6, radius=radius_hex,
+#                         orientation=math.radians(30),
+#                         facecolor='none',
+#                         edgecolor=color,
+#                         linewidth=width,
+#                         zorder=zorder_val
+#                     )
+#                     ax.add_patch(border_patch)
+
+#         # ---------------- função p/ desenhar contorno do cluster ----------------
+#         def draw_cluster_border(ax, rows_map, cols_map, y_off_val):
+#             if not highlight_cluster or not cluster_cells:
+#                 return
+#             ori = math.radians(30.0)
+#             radius_hex = 0.5
+#             cells = cluster_cells
+
+#             for bx, by in cells:
+#                 if not (0 <= bx < rows_map and 0 <= by < cols_map):
+#                     continue
+#                 x_off = 0.5 if (bx % 2) else 0.0
+#                 cx, cy = (by + x_off, (rows_map - 1 - bx) * y_off_val)
+
+#                 verts = []
+#                 for k in range(6):
+#                     ang = ori + 2.0 * math.pi * k / 6.0
+#                     vx = cx + radius_hex * math.cos(ang)
+#                     vy = cy + radius_hex * math.sin(ang)
+#                     verts.append((vx, vy))
+
+#                 if bx % 2 == 0:
+#                     neighbors = [
+#                         (0,  1, 5),   # E  -> lado 5
+#                         (0, -1, 2),   # W  -> lado 2
+#                         (-1,  0, 0),  # NE -> lado 0
+#                         (-1, -1, 1),  # NW -> lado 1
+#                         (1,  0, 4),   # SE -> lado 4
+#                         (1, -1, 3),   # SW -> lado 3
+#                     ]
+#                 else:
+#                     neighbors = [
+#                         (0,  1, 5),   # E  -> lado 5
+#                         (0, -1, 2),   # W  -> lado 2
+#                         (-1,  1, 0),  # NE -> lado 0
+#                         (-1,  0, 1),  # NW -> lado 1
+#                         (1,  1, 4),   # SE -> lado 4
+#                         (1,  0, 3),   # SW -> lado 3
+#                     ]
+
+#                 for dy, dx, side_idx in neighbors:
+#                     ny = bx + dy
+#                     nx = by + dx
+#                     if not (0 <= ny < rows_map and 0 <= nx < cols_map) or (ny, nx) not in cells:
+#                         v1 = verts[side_idx]
+#                         v2 = verts[(side_idx + 1) % 6]
+#                         ax.plot(
+#                             [v1[0], v2[0]],
+#                             [v1[1], v2[1]],
+#                             color=cluster_color,
+#                             linewidth=cluster_width,
+#                             zorder=6
+#                         )
+
+
+        
+#         def draw_neural_grid_color_legend(fig, ax_grid, handles, labels,
+#                                           x_gap=0.02, width=0.12,
+#                                           height_ratio=0.70, font_size=10):
+#             """
+#             Desenha a legenda das cores da grade neural.
+#             A largura do retângulo é ajustada automaticamente para não sobrepor textos.
+#             """
+#             if not handles or not labels:
+#                 return
+        
+#             fig.canvas.draw()
+#             renderer = fig.canvas.get_renderer()
+        
+#             grid_bbox = ax_grid.get_window_extent().transformed(fig.transFigure.inverted())
+        
+#             leg_h = grid_bbox.height * height_ratio
+#             leg_y = grid_bbox.y0 + (grid_bbox.height - leg_h) / 2.0
+#             leg_x = grid_bbox.x1 + x_gap
+        
+#             # ----------------------------------------------------------
+#             # Mede automaticamente o maior texto da legenda
+#             # ----------------------------------------------------------
+#             max_text_width_fig = 0.0
+        
+#             for lab in labels:
+#                 tmp_text = fig.text(
+#                     0, 0, str(lab),
+#                     fontsize=font_size,
+#                     alpha=0
+#                 )
+#                 bbox = tmp_text.get_window_extent(renderer=renderer)
+#                 bbox_fig = bbox.transformed(fig.transFigure.inverted())
+#                 max_text_width_fig = max(max_text_width_fig, bbox_fig.width)
+#                 tmp_text.remove()
+        
+#             # largura dos elementos internos da legenda
+#             box_x = 0.03
+#             box_w = 0.12
+#             text_x = 0.20
+#             right_padding = 0.06
+        
+#             # converte a largura necessária para coordenadas da figura
+#             needed_width = (
+#                 width * text_x +
+#                 max_text_width_fig +
+#                 width * right_padding
+#             )
+        
+#             # garante largura mínima e amplia se o texto exigir
+#             leg_w = max(width, needed_width)
+        
+#             ax_leg = fig.add_axes([leg_x, leg_y, leg_w, leg_h])
+#             ax_leg.set_xlim(0, 1)
+#             ax_leg.set_ylim(0, 1)
+#             ax_leg.axis('off')
+        
+#             n = len(labels)
+#             if n == 1:
+#                 ys = [0.5]
+#             else:
+#                 ys = np.linspace(0.96, 0.04, n)
+        
+#             box_h = min(0.055, 0.70 / max(n, 1))
+        
+#             for y, h, lab in zip(ys, handles, labels):
+#                 face = h.get_facecolor()
+#                 edge = h.get_edgecolor()
+#                 lw = h.get_linewidth()
+        
+#                 ax_leg.add_patch(Rectangle(
+#                     (box_x, y - box_h / 2),
+#                     box_w,
+#                     box_h,
+#                     transform=ax_leg.transAxes,
+#                     facecolor=face,
+#                     edgecolor=edge,
+#                     linewidth=lw
+#                 ))
+        
+#                 ax_leg.text(
+#                     text_x, y, str(lab),
+#                     transform=ax_leg.transAxes,
+#                     ha='left',
+#                     va='center',
+#                     fontsize=font_size,
+#                     color='black'
+#                 )
+        
+#             # ----------------------------------------------------------
+#             # Retângulo tracejado desenhado POR ÚLTIMO,
+#             # já com a largura automaticamente ajustada
+#             # ----------------------------------------------------------
+#             ax_leg.add_patch(Rectangle(
+#                 (0.0, 0.0),
+#                 1.0,
+#                 1.0,
+#                 transform=ax_leg.transAxes,
+#                 facecolor='none',
+#                 edgecolor='black',
+#                 linewidth=3,
+#                 linestyle='--',
+#                 zorder=20
+#             ))
+
+#         # def draw_neural_grid_color_legend(fig, ax_grid, handles, labels,
+#         #                                   x_gap=0.02, width=0.12,
+#         #                                   height_ratio=0.70, font_size=10):
+#         #     """
+#         #     Desenha a legenda das cores da grade neural com altura proporcional
+#         #     à altura real da grade neural.
+        
+#         #     height_ratio=0.70 significa: legenda com 70% da altura da grade.
+#         #     """
+#         #     if not handles or not labels:
+#         #         return
+        
+#         #     fig.canvas.draw()
+        
+#         #     grid_bbox = ax_grid.get_window_extent().transformed(fig.transFigure.inverted())
+        
+#         #     leg_h = grid_bbox.height * height_ratio
+#         #     leg_y = grid_bbox.y0 + (grid_bbox.height - leg_h) / 2.0
+#         #     leg_x = grid_bbox.x1 + x_gap
+        
+#         #     ax_leg = fig.add_axes([leg_x, leg_y, width, leg_h])
+#         #     ax_leg.set_xlim(0, 1)
+#         #     ax_leg.set_ylim(0, 1)
+#         #     ax_leg.axis('off')            
+#         #     ax_leg.add_patch(Rectangle(
+#         #         (0.0, 0.0),
+#         #         1.0,
+#         #         1.0,
+#         #         transform=ax_leg.transAxes,
+#         #         facecolor='none',
+#         #         edgecolor='black',
+#         #         linewidth=3,
+#         #         linestyle='--'
+#         #     ))            
+            
+        
+#         #     n = len(labels)
+#         #     if n == 1:
+#         #         ys = [0.5]
+#         #     else:
+#         #         ys = np.linspace(0.96, 0.04, n)
+        
+#         #     box_x = 0.03
+#         #     box_w = 0.12
+#         #     box_h = min(0.055, 0.70 / max(n, 1))
+#         #     text_x = 0.20
+        
+#         #     for y, h, lab in zip(ys, handles, labels):
+#         #         face = h.get_facecolor()
+#         #         edge = h.get_edgecolor()
+#         #         lw = h.get_linewidth()
+        
+#         #         ax_leg.add_patch(Rectangle(
+#         #             (box_x, y - box_h / 2),
+#         #             box_w,
+#         #             box_h,
+#         #             transform=ax_leg.transAxes,
+#         #             facecolor=face,
+#         #             edgecolor=edge,
+#         #             linewidth=lw
+#         #         ))
+        
+#         #         ax_leg.text(
+#         #             text_x, y, str(lab),
+#         #             transform=ax_leg.transAxes,
+#         #             ha='left', va='center',
+#         #             fontsize=font_size,
+#         #             color='black'
+#         #         )
+                
+
+#         # ---------------- função p/ desenhar legenda "BOUNDED AREAS" ----------------
+#         def draw_bounded_areas_legend(fig, ax, legend_entries,
+#                                       font_size, width_px):
+#             """
+#             Desenha a legenda 'BOUNDED AREAS' em um NOVO eixo
+#             no canto inferior direito da figura (fora da grade neural).
+#             """
+#             if not legend_entries:
+#                 return
+
+#             # defaults suaves caso algum valor venha None
+#             if font_size is None:
+#                 font_size = 10
+#             if width_px is None:
+#                 width_px = 2.0
+
+#             # linewidth em pontos, a partir de pixels
+#             try:
+#                 dpi_val = float(getattr(fig, 'dpi', 100.0))
+#             except Exception:
+#                 dpi_val = 100.0
+#             try:
+#                 lw_pts = float(width_px) * 72.0 / dpi_val
+#             except Exception:
+#                 lw_pts = 1.0
+
+#             # ------------------------------------------------------------------
+#             # NOVO: cria um eixo só para a legenda BOUNDED AREAS,
+#             # em coordenadas da FIGURA (x,y,width,height).
+#             # Ajuste estes quatro números para mover a legenda:
+#             #   [x_inicial, y_inicial, largura, altura]
+#             # ------------------------------------------------------------------
+#             ax_leg = fig.add_axes([0.85, 0.1, 0.18, 0.18])
+#             ax_leg.axis('off')
+
+#             # Coordenadas em sistema de eixos do ax_leg (0–1 em x e y)
+#             # >>> PARA AJUSTAR A POSIÇÃO HORIZONTAL:
+#             #     mexa em x_line_start, x_line_end e x_text (0 a 1).
+#             x_line_start = 0.05
+#             x_line_end   = 0.57
+#             x_text       = 0.70
+
+#             # Posição vertical base e espaçamento entre linhas
+#             n_entries = max(len(legend_entries), 1)
+#             base_y = 0.65
+#             dy     = 0.50 / n_entries
+
+#             # título logo acima da primeira linha
+#             ax_leg.text(0.5, 0.95,
+#                         "BOUNDED AREAS IN WHICH\nOBSERVATIONS ARE ANALYZED",
+#                         transform=ax_leg.transAxes,
+#                         ha='center', va='top',
+#                         fontsize=font_size,
+#                         fontweight='bold',
+#                         color='black')
+
+#             # linhas + rótulos
+#             for i, ent in enumerate(legend_entries):
+#                 y = base_y - i*dy
+#                 color = ent.get('color', 'black')
+#                 label = ent.get('label', '')
+
+#                 # linha da legenda
+#                 ax_leg.plot([x_line_start, x_line_end], [y, y],
+#                             transform=ax_leg.transAxes,
+#                             color=color,
+#                             linewidth=lw_pts)
+
+#                 # texto da legenda
+#                 ax_leg.text(x_text, y, label,
+#                             transform=ax_leg.transAxes,
+#                             ha='left', va='center',
+#                             fontsize=font_size,
+#                             color='black')
+
+
+
+#         # --------------------------------------------------------------
+#         # Lista única de entradas da legenda BOUNDED AREAS,
+#         # usada em TODOS os mapas onde as linhas forem desenhadas.
+#         # --------------------------------------------------------------
+#         bounded_legend_entries = []
+#         if highlight_cluster and cluster_cells and cluster_color is not None:
+#             bounded_legend_entries.append({
+#                 'color': cluster_color,
+#                 'label': 'Cluster'
+#             })
+#         if focal_coords and focal_color is not None:
+#             bounded_legend_entries.append({
+#                 'color': focal_color,
+#                 'label': 'Neuron'
+#             })
+#         if neighboring_coords and neighboring_color is not None:
+#             bounded_legend_entries.append({
+#                 'color': neighboring_color,
+#                 'label': 'Neighbors'
+#             })
+#         if discarded_coords and discarded_color is not None:
+#             bounded_legend_entries.append({
+#                 'color': discarded_color,
+#                 'label': 'Non-neighbors'
+#             })
+
+
+#         # tamanho de fonte / largura para a legenda (com fallback)
+#         legend_font_size  = bounded_areas_legend_font  if bounded_areas_legend_font  is not None else 10
+#         legend_width_px   = bounded_areas_legend_width if bounded_areas_legend_width is not None else 2.0
+
+#         # ==========================================================
+#         # PNG kept/removed/flagged — cores por cultura majoritária
+#         # ==========================================================
+#         try:
+#             # fig = plt.figure(figsize=(max(10, map_cols*0.4), max(8, map_rows*0.4)), dpi=100)
+#             # ax  = fig.add_subplot(1,1,1)
+#             # ax.axis('off')
+
+#             fig = plt.figure(figsize=(max(10, map_cols*0.4), max(8, map_rows*0.4)), dpi=100)
+#             fig.patch.set_facecolor('white')            
+#             ax  = fig.add_subplot(1,1,1)
+#             ax.set_facecolor('white')
+#             ax.axis('off')
+
+#             y_off = math.sqrt(3)/2
+#             d_top, d_mid, d_bot = 0.22, 0.00, -0.22
+#             tri_h, tri_w, tri_dx = 0.12, 0.12, 0.32
+
+#             agg_neurons = set(agg.keys())
+
+#             # ---------- desenha SOM com cores de maioria (SEM status ainda) ----------
+#             for bx in range(map_rows):
+#                 for by in range(map_cols):
+#                     x_off = 0.5 if (bx % 2) else 0.0
+#                     cx, cy = (by + x_off, (map_rows-1-bx) * y_off)
+
+#                     in_use = (bx, by) in agg_neurons
+
+#                     if in_use:
+#                         lab  = majority_label_map.get((bx, by))
+#                         face = label_to_color.get(lab, (0.9,0.9,0.9,1.0))
+#                     else:
+#                         face = 'white'
+
+#                     ax.add_patch(RegularPolygon(
+#                         xy=(cx, cy), numVertices=6, radius=0.5, orientation=math.radians(30),
+#                         facecolor=face,
+#                         edgecolor='white' if face!='white' else 'black',
+#                         linewidth=0.8 if face=='white' else 0.2
+#                     ))
+
+#                     # índices RR,CC (apenas se solicitado)
+#                     if with_indexes and indexes_font is not None:
+#                         rr = f"{(bx+1):02d}"
+#                         cc = f"{(by+1):02d}"
+#                         ax.text(cx, cy + d_bot, f"{rr},{cc}",
+#                                 ha='center', va='center', fontsize=indexes_font,
+#                                 color='black', fontweight='normal', zorder=6)
+
+#             # --------- legenda de culturas ---------
+#             legend_labels = []
+#             if unique_labels:
+#                 legend_labels = list(unique_labels)
+
+#             if cat_col in df_data.columns:
+#                 all_data_labels = sorted(
+#                     df_data[cat_col].dropna().astype(str).unique().tolist()
+#                 )
+#                 extra = [lab for lab in all_data_labels if lab not in legend_labels]
+#                 legend_labels.extend(extra)
+
+#             if legend_labels:
+#                 legend_labels = sorted(set(legend_labels), key=lambda x: str(x))
+
+#             if legend_labels:
+#                 for lab in legend_labels:
+#                     if lab not in label_to_color:
+#                         label_to_color[lab] = (0.85, 0.85, 0.85, 1.0)
+#                 class_patches = [
+#                     Patch(facecolor=label_to_color[lab],
+#                           edgecolor='white',
+#                           label=str(lab))
+#                     for lab in legend_labels
+#                 ]
+#             else:
+#                 class_patches = []
+
+#             unused_patch = Patch(
+#                 facecolor='white',
+#                 edgecolor='black',
+#                 linewidth=1.2,
+#                 label='Unused'
+#             )
+            
+#             # fig.legend(
+#             #     [unused_patch] + class_patches,
+#             #     ['Unused'] + [p.get_label() for p in class_patches],
+#             #     loc='upper left',
+#             #     bbox_to_anchor=(1.05, 1),
+#             #     fancybox=True,
+#             #     shadow=True,
+#             #     prop={'size': 10},
+#             #     ncol=1
+#             # )
+            
+#             class_legend_handles = [unused_patch] + class_patches
+#             class_legend_labels = ['Unused'] + [p.get_label() for p in class_patches]
+
+#             # SUMMARY (como antes)
+#             perc_kept    = round(sum_kept / total_before * 100, 2) if total_before else 0.0
+#             perc_removed = round(sum_removed / total_before * 100, 2) if total_before else 0.0
+#             perc_flagged = round(sum_flagged / total_before * 100, 2) if total_before else 0.0
+#             summary_rows = [
+#                 ['TOTAL',       f'{total_before}'],
+#                 ['Kept',        f'{sum_kept}'],
+#                 ['% Kept',      f'{perc_kept}'],
+#                 ['Removed',     f'{sum_removed}'],
+#                 ['% Removed',   f'{perc_removed}'],
+#                 ['Flagged',     f'{sum_flagged}'],
+#                 ['% Flagged',   f'{perc_flagged}'],
+#             ]
+#             # ax_sum = fig.add_axes([0.84, 0.18, 0.14, 0.32])
+#             ax_sum = fig.add_axes([1.00, 0.18, 0.14, 0.32])
+#             ax_sum.axis('off')
+#             ax_sum.text(0.5, 1.02, 'SUMMARY', transform=ax_sum.transAxes,
+#                         ha='center', va='bottom', fontsize=14, fontweight='bold')
+#             tbl_sum = ax_sum.table(cellText=summary_rows, colLabels=None,
+#                                    colWidths=[0.9, 0.52], cellLoc='left', loc='upper left')
+#             tbl_sum.auto_set_font_size(False)
+#             tbl_sum.set_fontsize(12)
+
+#             # neurônios descartados, vizinhos e focais (ANTES do contorno do cluster)
+#             draw_highlighted_neurons(
+#                 ax, map_rows, map_cols, y_off,
+#                 discarded_coords, discarded_color, discarded_width, zorder_val=5.0
+#             )
+#             draw_highlighted_neurons(
+#                 ax, map_rows, map_cols, y_off,
+#                 neighboring_coords, neighboring_color, neighboring_width, zorder_val=5.05
+#             )
+#             draw_highlighted_neurons(
+#                 ax, map_rows, map_cols, y_off,
+#                 focal_coords, focal_color, focal_width, zorder_val=5.2
+#             )
+
+#             # contorno do cluster (sempre por cima)
+#             draw_cluster_border(ax, map_rows, map_cols, y_off)
+
+#             # NOVO: legenda BOUNDED AREAS (se houver pelo menos uma linha)
+#             if bounded_legend_entries:
+#                 draw_bounded_areas_legend(
+#                     fig, ax,
+#                     bounded_legend_entries,
+#                     legend_font_size,
+#                     legend_width_px
+#                 )
+
+#             ax.set_xlim(-0.5, map_cols)
+#             ax.set_ylim(-0.5, map_rows*y_off + y_off/2)
+#             ax.set_aspect('equal')
+
+#             # ---------- AJUSTE DE LAYOUT COMUM AOS DOIS PNGs ----------
+#             plt.subplots_adjust(right=0.82, top=0.93)
+            
+#             draw_neural_grid_color_legend(
+#                 fig,
+#                 ax,
+#                 class_legend_handles,
+#                 class_legend_labels,
+#                 height_ratio=0.70,
+#                 font_size=30
+#             )            
+
+#             # ==================================================
+#             # NOVO PNG "limpo" (sem + / - / triângulos / legenda de status)
+#             # ==================================================
+#             majority_incidence_png = os.path.join(
+#                 out03, f'{prefix}.majority_incidence.png'
+#             )
+#             # fig.savefig(majority_incidence_png, bbox_inches='tight', dpi=120)
+#             # fig.savefig(majority_incidence_png, bbox_inches='tight', dpi=ARTWORK_DPI)
+#             # fig.savefig(majority_incidence_png, bbox_inches='tight', dpi=ARTWORK_DPI, pil_kwargs={"dpi": (ARTWORK_DPI, ARTWORK_DPI)})
+#             _save_artwork(fig, majority_incidence_png)
+
+#             # ==================================================
+#             # AGORA, ADICIONA STATUS + LEGENDA DE STATUS
+#             # (para o PNG "krf", com MESMA lógica original)
+#             # ==================================================
+
+#             ############### SUBSTITUIR ISSO... ###############
+#             # kept_h = Line2D([0],[0], marker='$+$', color='green', linestyle='None',
+#             #                 markersize=16, markeredgewidth=0, label='Kept')
+#             # rem_h  = Line2D([0],[0], marker='$-$', color='red', linestyle='None',
+#             #                 markersize=16, markeredgewidth=0, label='Removed')
+#             # flag_l = Line2D([0],[0], marker='<',  color='black', markerfacecolor='black',
+#             #                 linestyle='None', markersize=10)
+#             # flag_r = Line2D([0],[0], marker='>',  color='black', markerfacecolor='black',
+#             #                 linestyle='None', markersize=10)
+#             # fig.legend(handles=[kept_h, rem_h, (flag_l, flag_r)],
+#             #            labels=['Kept', 'Removed', 'Flagged'],
+#             #            handler_map={tuple: HandlerTuple(ndivide=None, pad=0.25)},
+#             #            loc='upper left', bbox_to_anchor=(1.05, 0.60),
+#             #            fancybox=True, shadow=True, prop={'size': 10})    
+#             ################## POR ISSO... ###################
+#             if show_krf:
+#                 kept_h = Line2D([0],[0], marker='$+$', color='green', linestyle='None',
+#                                 markersize=16, markeredgewidth=0, label='Kept')
+#                 rem_h  = Line2D([0],[0], marker='$-$', color='red', linestyle='None',
+#                                 markersize=16, markeredgewidth=0, label='Removed')
+#                 flag_l = Line2D([0],[0], marker='<',  color='black', markerfacecolor='black',
+#                                 linestyle='None', markersize=10)
+#                 flag_r = Line2D([0],[0], marker='>',  color='black', markerfacecolor='black',
+#                                 linestyle='None', markersize=10)
+#                 fig.legend(handles=[kept_h, rem_h, (flag_l, flag_r)],
+#                            labels=['Kept', 'Removed', 'Flagged'],
+#                            handler_map={tuple: HandlerTuple(ndivide=None, pad=0.25)},
+#                            loc='upper left', bbox_to_anchor=(1.05, 0.60),
+#                            fancybox=True, shadow=True, prop={'size': 10})    
+#             ##################################################
+
+#             # desenha símbolos de status em cada neurônio (mesma lógica original)
+                                            
+#             ############### SUBSTITUIR ISSO... ###############
+#             # for bx in range(map_rows):
+#             #     for by in range(map_cols):
+#             #         if (bx, by) not in agg_neurons:
+#             #             continue    
+#             ################## POR ISSO... ###################
+#             if show_krf:
+#                 for bx in range(map_rows):
+#                     for by in range(map_cols):
+#                         if (bx, by) not in agg_neurons:
+#                             continue
+#                         x_off = 0.5 if (bx % 2) else 0.0
+#                         cx, cy = (by + x_off, (map_rows-1-bx) * y_off)
+#                         a_sets = agg.get((bx, by))
+#                         if not a_sets:
+#                             continue
+#                         if a_sets['kept']:
+#                             ax.text(cx, cy + d_top, '+',
+#                                     ha='center', va='center', fontsize=12,
+#                                     color='green', fontweight='bold', zorder=5)
+#                         if a_sets['removed']:
+#                             ax.text(cx, cy + d_mid, '–',
+#                                     ha='center', va='center', fontsize=16,
+#                                     color='red', fontweight='bold', zorder=5)
+#                         if a_sets['flagged']:
+#                             left_tri = Polygon(
+#                                 [(cx - tri_dx - tri_w/2, cy),
+#                                  (cx - tri_dx + tri_w/2, cy + tri_h/2),
+#                                  (cx - tri_dx + tri_w/2, cy - tri_h/2)],
+#                                 closed=True, facecolor='black', edgecolor='black', zorder=5
+#                             )
+#                             right_tri = Polygon(
+#                                 [(cx + tri_dx + tri_w/2, cy),
+#                                  (cx + tri_dx - tri_w/2, cy + tri_h/2),
+#                                  (cx + tri_dx - tri_w/2, cy - tri_h/2)],
+#                                 closed=True, facecolor='black', edgecolor='black', zorder=5
+#                             )
+#                             ax.add_patch(left_tri)
+#                             ax.add_patch(right_tri)    
+#             ##################################################                    
+            
+#             ## ------BLOCO ABAIXO MOVIDO QUATRO ESPAÇOS PARA A DIREITA
+                    
+#                         x_off = 0.5 if (bx % 2) else 0.0
+#                         cx, cy = (by + x_off, (map_rows-1-bx) * y_off)
+#                         a_sets = agg.get((bx, by))
+#                         if not a_sets:
+#                             continue
+#                         if a_sets['kept']:
+#                             ax.text(cx, cy + d_top, '+',
+#                                     ha='center', va='center', fontsize=12,
+#                                     color='green', fontweight='bold', zorder=5)
+#                         if a_sets['removed']:
+#                             ax.text(cx, cy + d_mid, '–',
+#                                     ha='center', va='center', fontsize=16,
+#                                     color='red', fontweight='bold', zorder=5)
+#                         if a_sets['flagged']:
+#                             left_tri = Polygon(
+#                                 [(cx - tri_dx - tri_w/2, cy),
+#                                  (cx - tri_dx + tri_w/2, cy + tri_h/2),
+#                                  (cx - tri_dx + tri_w/2, cy - tri_h/2)],
+#                                 closed=True, facecolor='black', edgecolor='black', zorder=5
+#                             )
+#                             right_tri = Polygon(
+#                                 [(cx + tri_dx + tri_w/2, cy),
+#                                  (cx + tri_dx - tri_w/2, cy + tri_h/2),
+#                                  (cx + tri_dx - tri_w/2, cy - tri_h/2)],
+#                                 closed=True, facecolor='black', edgecolor='black', zorder=5
+#                             )
+#                             ax.add_patch(left_tri)
+#                             ax.add_patch(right_tri)
+    
+#             ## ------BLOCO ACIMA MOVIDO QUATRO ESPAÇOS PARA A DIREITA
+
+#             kept_removed_flagged_png = os.path.join(
+#                 out03, f'{prefix}.majority_incidence.krf.png'
+#             )
+#             # fig.savefig(kept_removed_flagged_png, bbox_inches='tight', dpi=120)
+#             # fig.savefig(kept_removed_flagged_png, bbox_inches='tight', dpi=ARTWORK_DPI, pil_kwargs={"dpi": (ARTWORK_DPI, ARTWORK_DPI)})
+#             _save_artwork(fig, kept_removed_flagged_png)
+            
+            
+#             plt.close(fig)
+
+#             # ==================================================
+#             # PNG kept_removed_flagged__targets_x_bmu.png (pizza)
+#             # ==================================================
+#             try:
+#                 if labels_map_pie and unique_labels:
+#                     # fig_p = plt.figure(figsize=(max(10, map_cols*0.4), max(8, map_rows*0.4)), dpi=100)
+#                     # ax_p  = fig_p.add_subplot(1,1,1)
+#                     # ax_p.axis('off')
+                    
+#                     fig_p = plt.figure(figsize=(max(10, map_cols*0.4), max(8, map_rows*0.4)), dpi=100)
+#                     fig_p.patch.set_facecolor('white')                    
+#                     ax_p  = fig_p.add_subplot(1,1,1)
+#                     ax_p.set_facecolor('white')
+#                     ax_p.axis('off')
+
+#                     y_off_p = y_off
+#                     d_top_p, d_mid_p, d_bot_p = d_top, d_mid, d_bot
+#                     tri_h_p, tri_w_p, tri_dx_p = tri_h, tri_w, tri_dx
+#                     radius_hex = 0.5
+
+#                     agg_neurons_p = agg_neurons.copy()
+
+#                     # legenda de classes (MESMA ORDEM do PNG principal)
+#                     if 'legend_labels' in locals() and legend_labels:
+#                         legend_labels_p = legend_labels
+#                     else:
+#                         legend_labels_p = sorted(set(unique_labels), key=lambda x: str(x))
+
+#                     class_patches_p = [
+#                         Patch(
+#                             facecolor=label_to_color[l],
+#                             edgecolor='white',
+#                             label=str(l)
+#                         )
+#                         for l in legend_labels_p
+#                     ]
+#                     unused_patch_p = Patch(
+#                         facecolor='white',
+#                         edgecolor='black',
+#                         linewidth=1.2,
+#                         label='Unused'
+#                     )
+                    
+#                     # fig_p.legend(
+#                     #     [unused_patch_p] + class_patches_p,
+#                     #     ['Unused'] + [p.get_label() for p in class_patches_p],
+#                     #     loc='upper right',
+#                     #     bbox_to_anchor=(1.02, 1),
+#                     #     fancybox=True,
+#                     #     shadow=True,
+#                     #     prop={'size': 10},
+#                     #     ncol=1
+#                     # )
+                    
+#                     class_legend_handles_p = [unused_patch_p] + class_patches_p
+#                     class_legend_labels_p = ['Unused'] + [p.get_label() for p in class_patches_p]                    
+
+#                     # desenha SOM em pizza (SEM status inicialmente)
+#                     for bx in range(map_rows):
+#                         for by in range(map_cols):
+#                             x_off = 0.5 if (bx % 2) else 0.0
+#                             cx, cy = (by + x_off, (map_rows - 1 - bx) * y_off_p)
+
+#                             in_use = (bx, by) in agg_neurons_p
+#                             cnts   = labels_map_pie.get((bx, by), {}) if in_use else {}
+#                             maj_lab = majority_label_map.get((bx, by))
+
+#                             if not in_use:
+#                                 ax_p.add_patch(RegularPolygon(
+#                                     xy=(cx, cy), numVertices=6, radius=radius_hex,
+#                                     orientation=math.radians(30),
+#                                     facecolor='white',
+#                                     edgecolor='black',
+#                                     linewidth=0.8
+#                                 ))
+#                             elif not cnts and maj_lab:
+#                                 face = label_to_color.get(maj_lab, (0.9, 0.9, 0.9, 1.0))
+#                                 ax_p.add_patch(RegularPolygon(
+#                                     xy=(cx, cy), numVertices=6, radius=radius_hex,
+#                                     orientation=math.radians(30),
+#                                     facecolor=face,
+#                                     edgecolor='black',
+#                                     linewidth=0.8
+#                                 ))
+#                             elif not cnts:
+#                                 ax_p.add_patch(RegularPolygon(
+#                                     xy=(cx, cy), numVertices=6, radius=radius_hex,
+#                                     orientation=math.radians(30),
+#                                     facecolor='white',
+#                                     edgecolor='black',
+#                                     linewidth=0.8
+#                                 ))
+#                             else:
+#                                 labs = sorted(cnts.keys(), key=lambda x: str(x))
+#                                 fracs = [cnts[lab] for lab in labs]
+#                                 cols_slice = [
+#                                     label_to_color.get(lab, (0.85, 0.85, 0.85, 1.0))
+#                                     for lab in labs
+#                                 ]
+
+#                                 hex_border = RegularPolygon(
+#                                     (cx, cy), numVertices=6, radius=radius_hex,
+#                                     orientation=math.radians(30),
+#                                     facecolor='none', edgecolor='white', linewidth=0.3,
+#                                     transform=ax_p.transData
+#                                 )
+
+#                                 wedges, _ = ax_p.pie(
+#                                     fracs,
+#                                     startangle=90,
+#                                     radius=radius_hex * 0.98,
+#                                     colors=cols_slice,
+#                                     center=(cx, cy),
+#                                     wedgeprops={'linewidth': 0}
+#                                 )
+#                                 for w in wedges:
+#                                     w.set_clip_path(hex_border)
+
+#                                 ax_p.add_patch(RegularPolygon(
+#                                     xy=(cx, cy), numVertices=6, radius=radius_hex,
+#                                     orientation=math.radians(30),
+#                                     facecolor='none', edgecolor='black', linewidth=0.8
+#                                 ))
+
+#                             if with_indexes and indexes_font is not None:
+#                                 rr = f"{(bx+1):02d}"
+#                                 cc = f"{(by+1):02d}"
+#                                 ax_p.text(cx, cy + d_bot_p, f"{rr},{cc}",
+#                                           ha='center', va='center', fontsize=indexes_font,
+#                                           color='black', fontweight='normal', zorder=6)
+
+#                     # SUMMARY (mesmo do primeiro PNG)
+#                     # ax_sum_p = fig_p.add_axes([0.84, 0.18, 0.14, 0.32])
+#                     ax_sum_p = fig_p.add_axes([1.00, 0.18, 0.14, 0.32])
+#                     ax_sum_p.axis('off')
+#                     ax_sum_p.text(0.5, 1.02, 'SUMMARY', transform=ax_sum_p.transAxes,
+#                                   ha='center', va='bottom', fontsize=14, fontweight='bold')
+#                     tbl_sum_p = ax_sum_p.table(
+#                         cellText=summary_rows,
+#                         colLabels=None,
+#                         colWidths=[0.9, 0.52],
+#                         cellLoc='left',
+#                         loc='upper left'
+#                     )
+#                     tbl_sum_p.auto_set_font_size(False)
+#                     tbl_sum_p.set_fontsize(12)
+
+#                     # neurônios descartados, vizinhos e focais (ANTES do contorno do cluster)
+#                     draw_highlighted_neurons(
+#                         ax_p, map_rows, map_cols, y_off_p,
+#                         discarded_coords, discarded_color, discarded_width, zorder_val=5.0
+#                     )
+#                     draw_highlighted_neurons(
+#                         ax_p, map_rows, map_cols, y_off_p,
+#                         neighboring_coords, neighboring_color, neighboring_width, zorder_val=5.05
+#                     )
+#                     draw_highlighted_neurons(
+#                         ax_p, map_rows, map_cols, y_off_p,
+#                         focal_coords, focal_color, focal_width, zorder_val=5.2
+#                     )
+
+#                     # contorno do cluster
+#                     draw_cluster_border(ax_p, map_rows, map_cols, y_off_p)
+
+#                     # NOVO: legenda BOUNDED AREAS também no mapa em pizza
+#                     if bounded_legend_entries:
+#                         draw_bounded_areas_legend(
+#                             fig_p, ax_p,
+#                             bounded_legend_entries,
+#                             legend_font_size,
+#                             legend_width_px
+#                         )
+
+#                     ax_p.set_xlim(-0.5, map_cols)
+#                     ax_p.set_ylim(-0.5, map_rows*y_off_p + y_off_p/2)
+#                     ax_p.set_aspect('equal')
+
+#                     plt.subplots_adjust(right=0.82, top=0.93)
+                    
+#                     draw_neural_grid_color_legend(
+#                         fig_p,
+#                         ax_p,
+#                         class_legend_handles_p,
+#                         class_legend_labels_p,
+#                         height_ratio=0.70,
+#                         font_size=30
+#                     )                    
+
+#                     # -------------------------------------------
+#                     # NOVO PNG "limpo" (sem status) — bmus_x_neurons
+#                     # -------------------------------------------
+#                     bmus_x_neurons_png = os.path.join(
+#                         out03, f'{prefix}.bmus_x_neurons.png'
+#                     )
+#                     # fig_p.savefig(bmus_x_neurons_png, bbox_inches='tight', dpi=120)
+#                     # fig_p.savefig(bmus_x_neurons_png, bbox_inches='tight', dpi=ARTWORK_DPI, pil_kwargs={"dpi": (ARTWORK_DPI, ARTWORK_DPI)})
+#                     _save_artwork(fig_p, bmus_x_neurons_png)
+
+#                     # -------------------------------------------
+#                     # AGORA ADICIONA LEGENDA DE STATUS E SÍMBOLOS
+#                     # (versão .krf, mesma lógica original)
+#                     # -------------------------------------------
+
+
+#                     ############### SUBSTITUIR ISSO... ###############
+                    
+#                     # kept_h_p = Line2D([0],[0], marker='$+$', color='green', linestyle='None',
+#                     #                   markersize=16, markeredgewidth=0, label='Kept')
+#                     # rem_h_p  = Line2D([0],[0], marker='$-$', color='red', linestyle='None',
+#                     #                   markersize=16, markeredgewidth=0, label='Removed')
+#                     # flag_l_p = Line2D([0],[0], marker='<',  color='black', markerfacecolor='black',
+#                     #                   linestyle='None', markersize=10)
+#                     # flag_r_p = Line2D([0],[0], marker='>',  color='black', markerfacecolor='black',
+#                     #                   linestyle='None', markersize=10)
+#                     # fig_p.legend(handles=[kept_h_p, rem_h_p, (flag_l_p, flag_r_p)],
+#                     #              labels=['Kept', 'Removed', 'Flagged'],
+#                     #              handler_map={tuple: HandlerTuple(ndivide=None, pad=0.25)},
+#                     #              loc='upper right',
+#                     #              bbox_to_anchor=(1, 0.7),
+#                     #              fancybox=True, shadow=True, prop={'size': 10})                    
+            
+#                     ################## POR ISSO... ###################
+            
+#                     if show_krf:
+                    
+#                         kept_h_p = Line2D([0],[0], marker='$+$', color='green', linestyle='None',
+#                                           markersize=16, markeredgewidth=0, label='Kept')
+                    
+#                         rem_h_p  = Line2D([0],[0], marker='$-$', color='red', linestyle='None',
+#                                           markersize=16, markeredgewidth=0, label='Removed')
+                    
+#                         flag_l_p = Line2D([0],[0], marker='<', color='black',
+#                                           markerfacecolor='black',
+#                                           linestyle='None', markersize=10)
+                    
+#                         flag_r_p = Line2D([0],[0], marker='>', color='black',
+#                                           markerfacecolor='black',
+#                                           linestyle='None', markersize=10)
+                    
+#                         fig_p.legend(
+#                             handles=[kept_h_p, rem_h_p, (flag_l_p, flag_r_p)],
+#                             labels=['Kept', 'Removed', 'Flagged'],
+#                             handler_map={tuple: HandlerTuple(ndivide=None, pad=0.25)},
+#                             loc='upper right',
+#                             bbox_to_anchor=(1, 0.7),
+#                             fancybox=True,
+#                             shadow=True,
+#                             prop={'size': 10}
+#                         )            
+            
+#                     ##################################################
+
+
+
+#                     # desenha símbolos de status em cada neurônio
+                                                            
+#                     ############### SUBSTITUIR ISSO... ###############
+#                     # for bx in range(map_rows):
+#                     #     for by in range(map_cols):
+#                     #         if (bx, by) not in agg_neurons_p:
+#                     #             continue            
+#                     ################## POR ISSO... ###################
+#                     if show_krf:
+#                         for bx in range(map_rows):
+#                             for by in range(map_cols):
+#                                 if (bx, by) not in agg_neurons_p:
+#                                     continue
+#                                 x_off = 0.5 if (bx % 2) else 0.0
+#                                 cx, cy = (by + x_off, (map_rows - 1 - bx) * y_off_p)
+#                                 a_sets = agg.get((bx, by))
+#                                 if not a_sets:
+#                                     continue
+#                                 if a_sets['kept']:
+#                                     ax_p.text(cx, cy + d_top_p, '+',
+#                                               ha='center', va='center', fontsize=12,
+#                                               color='green', fontweight='bold', zorder=5)
+#                                 if a_sets['removed']:
+#                                     ax_p.text(cx, cy + d_mid_p, '–',
+#                                               ha='center', va='center', fontsize=16,
+#                                               color='red', fontweight='bold', zorder=5)
+#                                 if a_sets['flagged']:
+#                                     left_tri_p = Polygon(
+#                                         [(cx - tri_dx_p - tri_w_p/2, cy),
+#                                          (cx - tri_dx_p + tri_w_p/2, cy + tri_h_p/2),
+#                                          (cx - tri_dx_p + tri_w_p/2, cy - tri_h_p/2)],
+#                                         closed=True, facecolor='black', edgecolor='black', zorder=5
+#                                     )
+#                                     right_tri_p = Polygon(
+#                                         [(cx + tri_dx_p + tri_w_p/2, cy),
+#                                          (cx + tri_dx_p - tri_w_p/2, cy + tri_h_p/2),
+#                                          (cx + tri_dx_p - tri_w_p/2, cy - tri_h_p/2)],
+#                                         closed=True, facecolor='black', edgecolor='black', zorder=5
+#                                     )
+#                                     ax_p.add_patch(left_tri_p)
+#                                     ax_p.add_patch(right_tri_p)            
+#                     ##################################################
+                                
+#                     ## ------BLOCO ABAIXO MOVIDO QUATRO ESPAÇOS PARA A DIREITA
+#                                 x_off = 0.5 if (bx % 2) else 0.0
+#                                 cx, cy = (by + x_off, (map_rows - 1 - bx) * y_off_p)
+#                                 a_sets = agg.get((bx, by))
+#                                 if not a_sets:
+#                                     continue
+#                                 if a_sets['kept']:
+#                                     ax_p.text(cx, cy + d_top_p, '+',
+#                                               ha='center', va='center', fontsize=12,
+#                                               color='green', fontweight='bold', zorder=5)
+#                                 if a_sets['removed']:
+#                                     ax_p.text(cx, cy + d_mid_p, '–',
+#                                               ha='center', va='center', fontsize=16,
+#                                               color='red', fontweight='bold', zorder=5)
+#                                 if a_sets['flagged']:
+#                                     left_tri_p = Polygon(
+#                                         [(cx - tri_dx_p - tri_w_p/2, cy),
+#                                          (cx - tri_dx_p + tri_w_p/2, cy + tri_h_p/2),
+#                                          (cx - tri_dx_p + tri_w_p/2, cy - tri_h_p/2)],
+#                                         closed=True, facecolor='black', edgecolor='black', zorder=5
+#                                     )
+#                                     right_tri_p = Polygon(
+#                                         [(cx + tri_dx_p + tri_w_p/2, cy),
+#                                          (cx + tri_dx_p - tri_w_p/2, cy + tri_h_p/2),
+#                                          (cx + tri_dx_p - tri_w_p/2, cy - tri_h_p/2)],
+#                                         closed=True, facecolor='black', edgecolor='black', zorder=5
+#                                     )
+#                                     ax_p.add_patch(left_tri_p)
+#                                     ax_p.add_patch(right_tri_p)
+
+#                     ## ------BLOCO ABAIXO MOVIDO QUATRO ESPAÇOS PARA A DIREITA
+                    
+#                     kept_removed_flagged_targets_png = os.path.join(
+#                         out03, f'{prefix}.bmus_x_neurons.krf.png'
+#                     )
+#                     # fig_p.savefig(kept_removed_flagged_targets_png, bbox_inches='tight', dpi=120)
+#                     # fig_p.savefig(kept_removed_flagged_targets_png, bbox_inches='tight', dpi=ARTWORK_DPI, pil_kwargs={"dpi": (ARTWORK_DPI, ARTWORK_DPI)})                    
+#                     _save_artwork(fig_p, kept_removed_flagged_targets_png)
+                    
+#                     plt.close(fig_p)
+#             except Exception as e_pizza:
+#                 print(f"[Aviso] Falha ao gerar kept_removed_flagged__targets_x_bmu.png: {e_pizza}")
+
+#         except Exception as e_png:
+#             print(f"[Aviso] Falha ao gerar kept_removed_flagged.png: {e_png}")
+
+#         # ==========================================================
+#         # CSV/PDF — (RR,CC) = (bx+1, by+1) e ordenação RR↑, CC↑, Class↑
+#         # ==========================================================
+#         def ids_three_per_line(id_list):
+#             if not id_list:
+#                 return ""
+#             parts = [",".join(str(x) for x in id_list[i:i+3])
+#                      for i in range(0, len(id_list), 3)]
+#             return "\n".join(parts)
+
+#         records = []
+#         for (bx, by), sets in agg.items():
+#             ksum, rsum, fsum = _get_counts(bx, by)
+#             cls = majority_label_map.get((bx, by), '')
+#             kept_ids    = sorted(list(sets['kept']))
+#             removed_ids = sorted(list(sets['removed']))
+#             flagged_ids = sorted(list(sets['flagged']))
+#             records.append({
+#                 'Row':  bx+1,
+#                 'Col':  by+1,
+#                 'Class': str(cls),
+#                 'Kept Id':    ids_three_per_line(kept_ids),
+#                 'K.Sum':      ksum,
+#                 'Removed Id': ids_three_per_line(removed_ids),
+#                 'R.Sum':      rsum,
+#                 'Flagged Id': ids_three_per_line(flagged_ids),
+#                 'F.Sum':      fsum,
+#             })
+
+#         records = sorted(records, key=lambda r: (r['Row'], r['Col'], r['Class']))
+
+#         # ---------------- CSV ----------------
+#         try:
+#             kept_removed_flagged_csv = os.path.join(
+#                 out03, f'{prefix}.krf.csv'
+#             )
+#             records_csv = records.copy()
+#             totals_row = {
+#                 'Row':'','Col':'','Class':'TOTALS',
+#                 'Kept Id':'','K.Sum':sum_kept,
+#                 'Removed Id':'','R.Sum':sum_removed,
+#                 'Flagged Id':'','F.Sum':sum_flagged
+#             }
+#             df_csv = pd.DataFrame(records_csv + [totals_row])
+
+#             def _mk_rrcc(row):
+#                 r, c = row.get('Row', ''), row.get('Col', '')
+#                 try:
+#                     r_i = int(r); c_i = int(c)
+#                     return f"({r_i:02d},{c_i:02d})"
+#                 except Exception:
+#                     return ""
+#             df_csv['RR,CC'] = df_csv.apply(_mk_rrcc, axis=1)
+
+#             cols_out = ['RR,CC','Class','Kept Id','K.Sum','Removed Id','R.Sum','Flagged Id','F.Sum']
+#             df_csv = df_csv.reindex(columns=cols_out)
+
+#             df_csv.to_csv(kept_removed_flagged_csv, index=False, encoding='utf-8-sig')
+#         except Exception as e_csv:
+#             print(f"[Aviso] Falha ao gerar kept_removed_flagged.csv: {e_csv}")
+
+#         # ---------------- PDF ----------------
+#         try:
+#             kept_removed_flagged_pdf = os.path.join(
+#                 out03, f'{prefix}.krf.pdf'
+#             )
+
+#             headers_pdf = ['RR,CC','Class','Kept Id','K.Sum','Removed Id','R.Sum','Flagged Id','F.Sum']
+#             w_fixed = {'RR,CC':0.10,'Class':0.12,'K.Sum':0.07,'R.Sum':0.07,'F.Sum':0.07}
+#             w_dynamic_total = 1 - sum(w_fixed.values())
+#             w_dyn = w_dynamic_total / 3.0
+#             col_widths = [w_fixed['RR,CC'], w_fixed['Class'],
+#                           w_dyn, w_fixed['K.Sum'],
+#                           w_dyn, w_fixed['R.Sum'],
+#                           w_dyn, w_fixed['F.Sum']]
+
+#             font_size=8; base_row_h=0.045; header_h=0.06; max_units=1.0
+
+#             df_for_pdf = pd.DataFrame(records)
+#             def _mk_rrcc_pdf(row):
+#                 try:
+#                     return f"({int(row['Row']):02d},{int(row['Col']):02d})"
+#                 except Exception:
+#                     return ""
+#             if len(df_for_pdf)>0:
+#                 df_for_pdf['RR,CC'] = df_for_pdf.apply(_mk_rrcc_pdf, axis=1)
+#                 df_for_pdf = df_for_pdf[['RR,CC','Class','Kept Id','K.Sum','Removed Id','R.Sum','Flagged Id','F.Sum']]
+#             else:
+#                 df_for_pdf = pd.DataFrame(columns=headers_pdf)
+
+#             def split_lines(s):
+#                 if not isinstance(s, str) or not s:
+#                     return [""]
+#                 return s.split("\n")
+
+#             expanded_rows = []
+#             max_units = 1.0
+#             base_row_h = 0.045
+#             header_h = 0.06
+#             max_lines_per_row = max(1, int((max_units - header_h) / base_row_h))
+
+#             for _, r in df_for_pdf.iterrows():
+#                 kept_lines    = split_lines(r['Kept Id'])
+#                 removed_lines = split_lines(r['Removed Id'])
+#                 flagged_lines = split_lines(r['Flagged Id'])
+#                 total_lines = max(len(kept_lines), len(removed_lines), len(flagged_lines))
+#                 start = 0
+#                 first = True
+#                 while start < total_lines:
+#                     end = start + max_lines_per_row
+#                     blk_kept    = "\n".join(kept_lines[start:end]) if start < len(kept_lines) else ""
+#                     blk_removed = "\n".join(removed_lines[start:end]) if start < len(removed_lines) else ""
+#                     blk_flagged = "\n".join(flagged_lines[start:end]) if start < len(flagged_lines) else ""
+#                     expanded_rows.append({
+#                         'RR,CC': r['RR,CC'] if first else '',
+#                         'Class': r['Class'] if first else '',
+#                         'Kept Id': blk_kept,
+#                         'K.Sum': r['K.Sum'] if first else '',
+#                         'Removed Id': blk_removed,
+#                         'R.Sum': r['R.Sum'] if first else '',
+#                         'Flagged Id': blk_flagged,
+#                         'F.Sum': r['F.Sum'] if first else '',
+#                         '_lines': max(
+#                             (blk_kept.count("\n")+1) if blk_kept else 1,
+#                             (blk_removed.count("\n")+1) if blk_removed else 1,
+#                             (blk_flagged.count("\n")+1) if blk_flagged else 1,
+#                         )
+#                     })
+#                     first = False
+#                     start = end
+
+#             def paginate(recs, start):
+#                 used = header_h
+#                 i = start
+#                 heights = []
+#                 while i < len(recs):
+#                     h = base_row_h * max(1, recs[i]['_lines'])
+#                     if used + h > max_units:
+#                         break
+#                     heights.append(h)
+#                     used += h
+#                     i += 1
+#                 if i == start and start < len(recs):
+#                     heights = [base_row_h * max(1, recs[start]['_lines'])]
+#                     i = start + 1
+#                 return i, heights
+
+#             with PdfPages(kept_removed_flagged_pdf) as pp:
+#                 # usa o PNG .krf (com status) na primeira página do PDF
+#                 if os.path.exists(kept_removed_flagged_png):
+#                     # fig1 = plt.figure(figsize=(12,9))
+#                     # ax1 = fig1.add_subplot(111); ax1.axis('off')
+#                     # ax1.imshow(plt.imread(kept_removed_flagged_png))
+                    
+#                     fig1 = plt.figure(figsize=(12,9))
+#                     fig1.patch.set_facecolor('white')                    
+#                     ax1 = fig1.add_subplot(111)
+#                     ax1.set_facecolor('white')
+#                     ax1.axis('off')
+#                     ax1.imshow(plt.imread(kept_removed_flagged_png))
+                                        
+#                     # pp.savefig(fig1, bbox_inches='tight')
+#                     # pp.savefig(fig1, bbox_inches='tight', dpi=ARTWORK_DPI)
+#                     pp.savefig(fig1, bbox_inches='tight')
+                    
+#                     plt.close(fig1)
+
+#                 idx = 0
+#                 while idx < len(expanded_rows):
+#                     end, heights = paginate(expanded_rows, idx)
+#                     chunk = expanded_rows[idx:end]
+#                     rows_pdf = [[str(rec[h]) for h in headers_pdf] for rec in chunk]
+
+#                     # figp = plt.figure(figsize=(8.27,11.69))
+#                     # axp = figp.add_subplot(111); axp.axis('off')
+                    
+#                     figp = plt.figure(figsize=(8.27,11.69))
+#                     figp.patch.set_facecolor('white')                    
+#                     axp = figp.add_subplot(111)
+#                     axp.set_facecolor('white')
+#                     axp.axis('off')                    
+                    
+#                     tbl = axp.table(cellText=rows_pdf, colLabels=headers_pdf,
+#                                     colWidths=col_widths, cellLoc='left', loc='upper left')
+#                     tbl.auto_set_font_size(False); tbl.set_fontsize(font_size)
+
+#                     ncols = len(headers_pdf)
+#                     for c in range(ncols):
+#                         if (0,c) in tbl._cells:
+#                             tbl._cells[(0,c)].set_height(header_h)
+#                     for r_i, rh in enumerate(heights, start=1):
+#                         for c in range(ncols):
+#                             if (r_i,c) in tbl._cells:
+#                                 cell = tbl._cells[(r_i,c)]
+#                                 cell.set_height(rh)
+#                                 cell.set_text_props(va='center', ha='left', fontsize=font_size)
+
+#                     # pp.savefig(figp, bbox_inches='tight')
+#                     # pp.savefig(figp, bbox_inches='tight', dpi=ARTWORK_DPI)
+#                     pp.savefig(figp, bbox_inches='tight')
+                    
+#                     plt.close(figp)
+#                     idx = end
+
+#                 # figt = plt.figure(figsize=(8.27,3))
+#                 # axt = figt.add_subplot(111); axt.axis('off')
+                
+#                 figt = plt.figure(figsize=(8.27,3))
+#                 figt.patch.set_facecolor('white')                
+#                 axt = figt.add_subplot(111)
+#                 axt.set_facecolor('white')
+#                 axt.axis('off')    
+                
+                
+#                 totals = ['', 'TOTALS', '', str(sum_kept), '', str(sum_removed), '', str(sum_flagged)]
+#                 tblt = axt.table(cellText=[totals], colLabels=headers_pdf,
+#                                  colWidths=col_widths, cellLoc='left', loc='upper left')
+#                 tblt.auto_set_font_size(False); tblt.set_fontsize(10)
+#                 for c in range(len(headers_pdf)):
+#                     if (0,c) in tblt._cells:
+#                         tblt._cells[(0,c)].set_height(0.06)
+#                 # pp.savefig(figt, bbox_inches='tight')
+#                 # pp.savefig(figt, bbox_inches='tight', dpi=ARTWORK_DPI)
+#                 pp.savefig(figt, bbox_inches='tight')
+#                 plt.close(figt)
+#         except Exception as e_pdf:
+#             print(f"[Aviso] Falha ao gerar kept_removed_flagged.pdf: {e_pdf}")
+
+#         # ==========================================================
+#         # >>> RESTAURAÇÃO DOS ARQUIVOS NECESSÁRIOS PARA AS PRÓXIMAS ETAPAS
+#         # ==========================================================
+#         try:
+#             kept_positions = df_res[df_res.action != 'removed'].pos.values
+#             new_csv = os.path.join(data_dir, f'data_{it}.csv')
+#             df_data.iloc[kept_positions].to_csv(new_csv, index=False)
+
+#             total_before_data = len(df_data)
+#             total_after_data  = len(kept_positions)
+#             total_excluded    = int((df_res.action=='removed').sum())
+
+#             summary_df = pd.DataFrame([{
+#                 'total_before_exclusion': total_before_data,
+#                 'total_after_exclusion':  total_after_data,
+#                 'total_excluded':         total_excluded
+#             }])
+#             gen_path = os.path.join(data_dir, f'data_{it-1}_to_{it}_general_summary.csv')
+#             summary_df.to_csv(gen_path, index=False)
+
+#             grp = df_res.merge(df_data[[key, cat_col]], left_on='pos', right_index=True)
+#             rows_cat = []
+#             for cat, sub in grp.groupby(cat_col):
+#                 tot   = len(sub)
+#                 kept  = int((sub.action=='kept').sum())
+#                 rem   = int((sub.action=='removed').sum())
+#                 flag  = int((sub.action=='flagged').sum())
+#                 rows_cat.append({
+#                     cat_col:        cat,
+#                     'total':        tot,
+#                     'kept (qt)':    kept,
+#                     'kept (%)':     round(kept/tot*100,2) if tot>0 else 0.0,
+#                     'removed (qt)': rem,
+#                     'removed (%)':  round(rem/tot*100,2) if tot>0 else 0.0,
+#                     'flagged (qt)': flag,
+#                     'flagged (%)':  round(flag/tot*100,2) if tot>0 else 0.0,
+#                 })
+#             rows_cat.append({
+#                 cat_col:        'ALL',
+#                 'total':        total_before_data,
+#                 'kept (qt)':    int((df_res.action=='kept').sum()),
+#                 'kept (%)':     round(int((df_res.action=='kept').sum())/max(total_before_data,1)*100,2),
+#                 'removed (qt)': total_excluded,
+#                 'removed (%)':  round(total_excluded/max(total_before_data,1)*100,2),
+#                 'flagged (qt)': int((df_res.action=='flagged').sum()),
+#                 'flagged (%)':  round(int((df_res.action=='flagged').sum())/max(total_before_data,1)*100,2),
+#             })
+#             cat_df = pd.DataFrame(rows_cat)
+#             cat_path = os.path.join(data_dir, f'data_{it-1}_to_{it}_categorized_summary.csv')
+#             cat_df.to_csv(cat_path, index=False)
+
+#             # fig_s, ax_s = plt.subplots(figsize=(12, 0.5 + 0.4*len(cat_df)))
+#             # ax_s.axis('off')
+            
+
+#             fig_s, ax_s = plt.subplots(figsize=(12, 0.5 + 0.4*len(cat_df)))
+#             fig_s.patch.set_facecolor('white')
+#             ax_s.set_facecolor('white')
+#             ax_s.axis('off')            
+            
+            
+#             timestamp = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
+#             title = f"Project {proj}. Step {it}. Executed on {timestamp}"
+#             plt.title(title, fontsize=14, loc='center')
+#             ncols_cat = len(cat_df.columns)
+#             col_widths_cat = [0.2] + [0.1]*(ncols_cat-1)
+#             tbl_s = ax_s.table(cellText=cat_df.values, colLabels=cat_df.columns,
+#                                colWidths=col_widths_cat, loc='center', cellLoc='center')
+#             tbl_s.auto_set_font_size(False)
+#             tbl_s.set_fontsize(12)
+#             png_sum = os.path.join(data_dir, f'data_{it-1}_to_{it}_categorized_summary.png')
+#             plt.tight_layout()
+#             # fig_s.savefig(png_sum, dpi=100, bbox_inches='tight')
+#             # fig_s.savefig(png_sum, dpi=ARTWORK_DPI, bbox_inches='tight', pil_kwargs={"dpi": (ARTWORK_DPI, ARTWORK_DPI)})
+#             _save_artwork(fig_s, png_sum)
+#             plt.close(fig_s)
+
+#             before_counts = df_data[cat_col].value_counts()
+#             after_counts  = df_data.iloc[kept_positions][cat_col].value_counts()
+#             classes_rep   = sorted(set(before_counts.index).union(set(after_counts.index)))
+
+#             rep = []
+#             for c in classes_rep:
+#                 b = before_counts.get(c, 0) / max(total_before_data, 1) * 100
+#                 a = after_counts.get(c, 0)  / max(total_after_data,  1) * 100
+#                 rep.append([c, round(b, 2), round(a, 2)])
+
+#             rep_df = pd.DataFrame(rep, columns=['class', 'Before (%)', 'After (%)'])
+            
+#             # fig_r, ax_r = plt.subplots(figsize=(10, 0.5 + 0.4*len(rep_df)))
+#             # ax_r.axis('off')
+            
+#             fig_r, ax_r = plt.subplots(figsize=(10, 0.5 + 0.4*len(rep_df)))
+#             fig_r.patch.set_facecolor('white')
+#             ax_r.set_facecolor('white')
+#             ax_r.axis('off')
+            
+#             rep_title = f"Project {proj}. Categorized representativeness, after step {it}. Executed on {timestamp}"
+#             plt.title(rep_title, fontsize=14, loc='center')
+#             tbl_r = ax_r.table(cellText=rep_df.values, colLabels=rep_df.columns,
+#                                colWidths=[0.2, 0.1, 0.1], loc='center', cellLoc='center')
+#             tbl_r.auto_set_font_size(False)
+#             tbl_r.set_fontsize(12)
+#             rep_path = os.path.join(data_dir, f'data_{it-1}_to_{it}_categorized_representativeness.png')
+#             plt.tight_layout()
+#             # fig_r.savefig(rep_path, dpi=100, bbox_inches='tight')
+#             # fig_r.savefig(rep_path, dpi=ARTWORK_DPI, bbox_inches='tight', pil_kwargs={"dpi": (ARTWORK_DPI, ARTWORK_DPI)})
+#             _save_artwork(fig_r, rep_path)
+#             plt.close(fig_r)
+
+#         except Exception as e_restored:
+#             print(f"[Aviso] Falha ao gerar artefatos restaurados: {e_restored}")
+
+#         # ==================== RESULTADO ====================
+#         result = {
+#             "message":"Step 03 concluído com sucesso.",
+#             "total":total_before,
+#             "sum_kept":sum_kept,
+#             "sum_removed":sum_removed,
+#             "sum_flagged":sum_flagged
+#         }
+#         return Response(json.dumps(result,indent=2,ensure_ascii=False),
+#                         mimetype='application/json'),200
+
+#     except Exception as e:
+#         err={"message":f"Erro interno: {e}"}
+#         return Response(json.dumps(err,indent=2,ensure_ascii=False),
+#                         mimetype='application/json'),500
 
 
 
@@ -14946,12 +16923,19 @@ def step_04__evaluate_results_after_exclude():
 #   -F "lof_csv_folder_path=/home/alex/Downloads/github/improving_crop_identification__rest/projs/ssf.25x25/03_lof/" \
 #   -F "it_csv_folder_path=/home/alex/Downloads/github/improving_crop_identification__rest/projs/ssf.25x25/12_method/data/"
 #############################################################################################################
+
+
+#############################################################################################################
+###  CÓDIGO USADO PARA GERAR Figure_8
+#############################################################################################################
 # curl -X POST http://127.0.0.1:5000/statistical_summary \
 #   -F "project_name=pampa.25x50" \
 #   -F "category_column=label" \
-#   -F "rd_ss_csv_folder_path=/home/alex/Downloads/github/improving_crop_identification__rest/projs/pampa.25x50/00_preprocessing/original_data/" \
-#   -F "lof_csv_folder_path=/home/alex/Downloads/github/improving_crop_identification__rest/projs/pampa.25x50/03_lof/" \
-#   -F "it_csv_folder_path=/home/alex/Downloads/github/improving_crop_identification__rest/projs/pampa.25x50/12_method/data/"
+#   -F "rd_ss_csv_folder_path=/home/alex/Downloads/github/SITS-sample-quality/api/v.0.0.1/projs/pampa.25x50/00_preprocessing/original_data/" \
+#   -F "lof_csv_folder_path=/home/alex/Downloads/github/SITS-sample-quality/api/v.0.0.1/projs/pampa.25x50/03_lof/" \
+#   -F "it_csv_folder_path=/home/alex/Downloads/github/SITS-sample-quality/api/v.0.0.1/projs/pampa.25x50/12_method/data/"
+#############################################################################################################
+
 #############################################################################################################
 # curl -X POST http://127.0.0.1:5000/statistical_summary \
 #   -F "project_name=pampa.15x15" \
@@ -14982,12 +16966,17 @@ def step_04__evaluate_results_after_exclude():
 #   -F "rd_ss_csv_folder_path=/home/alex/Downloads/github/improving_crop_identification__rest/projs/pampa.25x50/00_preprocessing/original_data/" \
 #   -F "it_csv_folder_path=/home/alex/Downloads/github/improving_crop_identification__rest/projs/pampa.25x50/12_method/data/"
 #############################################################################################################
+
+
+#############################################################################################################
+###  CÓDIGO USADO PARA GERAR Figure_10
+#############################################################################################################
 # curl -X POST http://127.0.0.1:5000/statistical_summary \
 #   -F "project_name=ssf.25x25" \
 #   -F "rotate_titles_in_the_matrix_of_confusion=true" \
 #   -F "category_column=Cultura" \
-#   -F "rd_ss_csv_folder_path=/home/alex/Downloads/github/improving_crop_identification__rest/projs/ssf.25x25/00_preprocessing/original_data/" \
-#   -F "it_csv_folder_path=/home/alex/Downloads/github/improving_crop_identification__rest/projs/ssf.25x25/12_method/data/"
+#   -F "rd_ss_csv_folder_path=/home/alex/Downloads/github/SITS-sample-quality/api/v.0.0.1/projs/ssf.25x25/00_preprocessing/original_data/" \
+#   -F "it_csv_folder_path=/home/alex/Downloads/github/SITS-sample-quality/api/v.0.0.1/projs/ssf.25x25/12_method/data/"
 #############################################################################################################
 
 ## OBS: Antes de executar "statistical_summary", certifique-se de ter executado "mapping_original_labels"
