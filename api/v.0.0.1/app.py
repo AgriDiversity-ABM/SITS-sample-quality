@@ -68,6 +68,49 @@ import shapefile  # requires: pyshp (install via `pip install pyshp`)
 import subprocess
 
 
+
+#################################################################
+#################################################################
+#### Monkey Patch para fazer com que o erro "module 'matplotlib.cm' has no attribute 'get_cmap'"
+#### seja suprimido enquanto não tenho tempo de atualizar a matplotlib no backend Flask
+#################################################################
+#################################################################
+
+import matplotlib.cm
+import matplotlib.pyplot as plt
+import matplotlib
+
+# Cria uma função adaptadora que aceita os dois argumentos da versão antiga
+def legacy_get_cmap(name=None, lut=None):
+    # Se nenhum nome for fornecido, usa o padrão do Matplotlib
+    if name is None:
+        name = matplotlib.rcParams['image.cmap']
+    
+    # Busca o mapa de cores usando a sintaxe moderna
+    cmap = matplotlib.colormaps[name]
+    
+    # Se o segundo argumento (lut) tiver sido passado pelo seu código, reamostra a escala
+    if lut is not None:
+        return cmap.resampled(lut)
+    
+    return cmap
+
+# Engana o sistema redirecionando as chamadas antigas para a nossa função adaptadora
+matplotlib.cm.get_cmap = legacy_get_cmap
+plt.cm.get_cmap = legacy_get_cmap
+
+#################################################################
+#################################################################
+#################################################################
+#################################################################
+#################################################################
+#################################################################
+
+
+
+
+
+
 # ====================             INÍCIO              ====================
 # ==================== QUALIDADE EDITORIAL DAS FIGURAS ====================
 # ====================             INÍCIO              ====================
@@ -523,6 +566,23 @@ def clean_data(df: pd.DataFrame, data_columns: list[str]) -> pd.DataFrame:
 #   -F "data_columns=B02,B03,B04,B08,EVI,NDVI"
 ########################################################################
 
+
+########################################################################
+# curl -X POST http://127.0.0.1:5000/create_project \
+#   -F "project_name=acajutiba" \
+#   -F "data=@/home/alex/Downloads/acajutiba.csv" \
+#   -F "k_in_kfcv=10" \
+#   -F "category_column=label" \
+#   -F "data_columns=B08,B11,EVI,NDVI"
+########################################################################
+
+
+
+########################################################################
+# curl -X POST http://127.0.0.1:5000/create_project    -F "project_name=acajutiba"    -F "data=@C:/Users/01799564266/Downloads/Acajutiba/acajutiba.csv"     -F "k_in_kfcv=10"     -F "category_column=label"     -F "data_columns=B08,B11,EVI,NDVI"
+########################################################################
+
+
 @app.route('/create_project', methods=['POST'])
 def create_project():
     """
@@ -672,6 +732,8 @@ def create_project():
 #     -F "project_name=pampa.25x50" \
 #     -F "label=label" \
 #     -F "file=@/home/alex/Downloads/github/improving_crop_identification__rest/projs/pampa.25x50/00_preprocessing/original_data/data.csv" 
+########################################################################
+# curl -X POST http://127.0.0.1:5000/quantitative_by_label -F "project_name=acajutiba"  -F "label=label"  -F "file=@C:/Users/01799564266/Downloads/Acajutiba/projs/acajutiba/00_preprocessing/original_data/data.csv" 
 ########################################################################
 
 @app.route('/quantitative_by_label', methods=['POST'])
@@ -1209,6 +1271,8 @@ def quantitative_by_label__latex():
 #   -F "file=@/home/alex/Downloads/github/improving_crop_identification__rest/projs/pampa.25x50/00_preprocessing/original_data/data.csv" \
 #   -F "prefixes=B02,B03,B04,B08,EVI,NDVI"
 ################################################################
+# curl -X POST http://127.0.0.1:5000/standard_scaler   -F "project_name=acajutiba"  -F "file=@C:/Users/01799564266/Downloads/Acajutiba/projs/acajutiba/00_preprocessing/original_data/data.csv"   -F "prefixes=B08,B11,EVI,NDVI"
+################################################################
 
 @app.route('/standard_scaler', methods=['POST'])
 def standard_scaler():
@@ -1692,6 +1756,9 @@ def evaluate_results(
 #   -F "data_columns=B02,B03,B04,B08,EVI,NDVI" \
 #   -F "table_title=Results after Standard Scaler"
 ################################################################
+# curl -X POST http://127.0.0.1:5000/evaluate_results_after_standard_scaler    -F "project_name=acajutiba"    -F "data_path=./projs/acajutiba/01_standard_scaler/20260727140025_acajutiba_standard_scaler.csv"    -F "k_in_kfcv=10"    -F "category_column=label"    -F "data_columns=B08,B11,EVI,NDVI"    -F "table_title=Results after Standard Scaler"
+################################################################
+
 
 
 
@@ -2509,6 +2576,8 @@ def evaluate_results_after_optional_clipping():
 #   -F "lrs=0.05,0.1,0.15,0.2,0.25,0.3,0.35,0.4,0.45,0.5" \
 #   -F "prefixes=ndvi,evi,nir,mir"
 #################################################################
+# curl -X POST http://127.0.0.1:5000/som_hyperparameters_test    -F "project_name=acajutiba"    -F "file=@C:/Users/01799564266/Downloads/Acajutiba/projs/acajutiba/01_standard_scaler/20260727140025_acajutiba_standard_scaler.csv"    -F "dims=15x15,18x18,15x25,20x20,25x25,30x30,25x50,40x40,50x50,60x60,50x75"    -F "sigmas=1,1.5,2,2.5,3"    -F "lrs=0.05,0.1,0.15,0.2,0.25,0.3,0.35,0.4,0.45,0.5"    -F "prefixes=B08,B11,EVI,NDVI"
+#################################################################
 
 
 @app.route('/som_hyperparameters_test', methods=['POST'])
@@ -2679,6 +2748,8 @@ def som_hyperparameters_test():
 # curl -X POST http://127.0.0.1:5000/som_hyperparameters_summary \
 #     -F "project_name=pampa.15x15" \
 #     -F "file=@/home/alex/Downloads/github/SITS-sample-quality/api/v.0.0.1/projs/pampa.15x15/07_rna_hyperparameters/pampa_hyperparameters_test.csv"
+######################################################################################################################
+ # curl -X POST http://127.0.0.1:5000/som_hyperparameters_summary      -F "project_name=acajutiba"      -F "file=@C:/Users/01799564266/Downloads/Acajutiba/projs/acajutiba/07_rna_hyperparameters/acajutiba_hyperparameters_test.csv"
 ######################################################################################################################
 
 @app.route('/som_hyperparameters_summary', methods=['POST'])
@@ -2976,6 +3047,10 @@ def som_hyperparameters_summary():
 #   -F "desired_occupancy_rate=90" \
 #   -F "data=@/home/alex/Downloads/github/improving_crop_identification__rest/projs/cerrado.50x75/01_standard_scaler/20251030090037_cerrado.50x75_standard_scaler.csv"
 ########################################################################################################
+
+########################################################################################################
+ # curl -X POST http://127.0.0.1:5000/occupancy_rate_by_size    -F "project_name=acajutiba"    -F "data_columns=B08,B11,EVI,NDVI"    -F "tuning_mode=balanced"    -F "topology=hexagonal"    -F "neighborhood_function=gaussian"    -F "desired_occupancy_rate=90"    -F "data=@C:/Users/01799564266/Downloads/Acajutiba/projs/acajutiba/01_standard_scaler/20260727140025_acajutiba_standard_scaler.csv"
+########################################################################################################    
 
 
 @app.route('/occupancy_rate_by_size', methods=['POST'])
@@ -3801,6 +3876,11 @@ def occupancy_rate_by_size():
 #   -F "topology=hexagonal" \
 #   -F "data_columns=B02,B03,B04,B05,B06,B07,B08,B11,B12,B8A,EVI,NDVI"
 ########################################################################################################
+
+########################################################################################################
+# curl -X POST http://127.0.0.1:5000/mapping_original_labels    -F "project_name=acajutiba"    -F "csv_file=@C:/Users/01799564266/Downloads/Acajutiba/projs/acajutiba/01_standard_scaler/20260727140025_acajutiba_standard_scaler.csv;type=text/csv"    -F "use_predicted_bmus=false"    -F "with_indexes=false"    -F "label_name=label"    -F "dimensions=40x40"    -F "sigma=1"    -F "learning_rate=0.35"    -F "neighborhood_function=gaussian"    -F "topology=hexagonal"    -F "data_columns=B08,B11,EVI,NDVI"  -F "files=png"
+########################################################################################################
+
 
 
 @app.route('/mapping_original_labels', methods=['POST'])
@@ -5170,6 +5250,9 @@ def mapping_original_labels():
 #   -F "project_name=pampa.25x50" \
 #   -F "weights_file=@/home/alex/Downloads/github/improving_crop_identification__rest/projs/pampa.25x50/08_mapping_original_labels/pampa.25x50_weights__Dim=25x50_Sigma=1.0_LearningRate=0.5_NeighborhoodFunction=gaussian_Topology=hexagonal.npy"
 #############################################################################################################
+# curl -X POST http://127.0.0.1:5000/reshape_weights    -F "project_name=acajutiba"    -F "weights_file=@C:/Users/01799564266/Downloads/Acajutiba/projs/acajutiba/08_mapping_original_labels/acajutiba_weights__Dim=40x40_Sigma=1.0_LearningRate=0.35_NeighborhoodFunction=gaussian_Topology=hexagonal.npy"
+#############################################################################################################
+
 
 @app.route('/reshape_weights', methods=['POST'])
 def reshape_weights():
@@ -5366,6 +5449,11 @@ def reshape_weights():
 #   -F "actual_number_of_clusters=9" \
 #   -F "reshaped_weights_path=/home/alex/Downloads/github/improving_crop_identification__rest/projs/pampa.25x50/09_reshaped_weights/reshaped_weights.npy" 
 #############################################################################################################
+
+#############################################################################################################
+# curl -X POST http://127.0.0.1:5000/best_eps_for_dbscan    -F "project_name=acajutiba"    -F "number_of_neurons_in_the_neural_grid=1600"    -F "actual_number_of_clusters=14"    -F "reshaped_weights_path=C:/Users/01799564266/Downloads/Acajutiba/projs/acajutiba/09_reshaped_weights/reshaped_weights.npy" 
+#############################################################################################################
+
 
 @app.route('/best_eps_for_dbscan', methods=['POST'])
 def best_eps_for_dbscan():
@@ -5640,6 +5728,12 @@ Em suma, o código captura o ponto de maior variação na série de k-distances 
 #   -F "eps_values=0.5,0.501,0.502,0503,0504,0505,0506,0507,0508,0509,0.51,0.511,0.512,0.513,0.514,0.515,0.516,0.517,0.518,0.519,0.52,0.521,0.522,0.523,0.524,0.525,0.526,0.527,0.528,0.529,0.53,0.531,0.532,0.533,0.534,0.535,0.536,0.537,0.538,0.539,0.54"
 #############################################################################################################
 
+#############################################################################################################
+# curl -X POST http://127.0.0.1:5000/dbscan_clusters_x_eps     -F "project_name=acajutiba"     -F "dimension=40x40"     -F "actual_number_of_clusters=14"     -F "reshaped_weights_path=C:/Users/01799564266/Downloads/Acajutiba/projs/acajutiba/09_reshaped_weights/reshaped_weights.npy"     -F "eps_values=0.35,0.36,0.37,0.38,0.39,0.40,0.41,0.42,0.43,0.44,0.45,0.46,0.47,0.48,0.49,0.5,0.51,0.52,0.53,0.54,0.55"
+#############################################################################################################
+
+
+
 @app.route('/dbscan_clusters_x_eps', methods=['POST'])
 def dbscan_clusters_x_eps():
     try:
@@ -5836,6 +5930,11 @@ def dbscan_clusters_x_eps():
 #   -F "eps=0.522" \
 #   -F "reshaped_weights_path=/home/alex/Downloads/github/improving_crop_identification__rest/projs/pampa.25x50/09_reshaped_weights/reshaped_weights.npy"
 #############################################################################################################
+
+#############################################################################################################
+# curl -X POST http://127.0.0.1:5000/dbscan    -F "project_name=acajutiba"    -F "dimension=40x40"    -F "actual_number_of_clusters=14"    -F "eps=0.46"    -F "reshaped_weights_path=C:/Users/01799564266/Downloads/Acajutiba/projs/acajutiba/09_reshaped_weights/reshaped_weights.npy"
+#############################################################################################################
+
 
 @app.route('/dbscan', methods=['POST'])
 def dbscan():
@@ -6067,6 +6166,10 @@ def dbscan():
 #   -F "dimension=25x50" \
 #   -F "actual_number_of_clusters=9" \
 #   -F "reshaped_weights_path=./projs/pampa.25x50/09_reshaped_weights/reshaped_weights.npy"
+#############################################################################################################
+
+#############################################################################################################
+# curl -X POST http://localhost:5000/hdbscan    -F "project_name=acajutiba"    -F "dimension=40x40"    -F "actual_number_of_clusters=14"    -F "reshaped_weights_path=./projs/acajutiba/09_reshaped_weights/reshaped_weights.npy"
 #############################################################################################################
 
 @app.route('/hdbscan', methods=['POST'])
@@ -6313,6 +6416,10 @@ def hdbscan():
 #   -F "reshaped_weights_path=./projs/pampa.25x50/09_reshaped_weights/reshaped_weights.npy"
 #############################################################################################################
 
+#############################################################################################################
+# curl -X POST http://localhost:5000/agglomerative_hierarchical    -F "project_name=acajutiba"    -F "dimension=40x40"    -F "actual_number_of_clusters=14"    -F "reshaped_weights_path=./projs/acajutiba/09_reshaped_weights/reshaped_weights.npy"
+#############################################################################################################
+
 
 @app.route('/agglomerative_hierarchical', methods=['POST'])
 def agglomerative_hierarchical():
@@ -6538,6 +6645,10 @@ def agglomerative_hierarchical():
 #   -F "dimension=25x50" \
 #   -F "actual_number_of_clusters=9" \
 #   -F "reshaped_weights_path=./projs/pampa.25x50/09_reshaped_weights/reshaped_weights.npy"
+#############################################################################################################
+
+#############################################################################################################
+# curl -X POST http://localhost:5000/kmeans    -F "project_name=acajutiba"    -F "dimension=40x40"    -F "actual_number_of_clusters=14"    -F "reshaped_weights_path=./projs/acajutiba/09_reshaped_weights/reshaped_weights.npy"
 #############################################################################################################
 
 @app.route('/kmeans', methods=['POST'])
@@ -7105,59 +7216,384 @@ def cluster_acc(y_true, y_pred):
 # curl -X POST http://127.0.0.1:5000/calculate_clustering_accuracy \
 #   -F "project_name=pampa.25x50" \
 #   -F "alg=KMEANS" \
-#   -F "targets_csv=@/home/alex/Downloads/github/improving_crop_identification__rest/projs/pampa.25x50/08_mapping_original_labels/targets.csv" \
-#   -F "predicted_csv=@/home/alex/Downloads/github/improving_crop_identification__rest/projs/pampa.25x50/10_clustering/KMeans/predicted.csv"
+#   -F "targets_csv=@/home/alex/Downloads/github/SITS-sample-quality/api/v.0.0.1/projs/pampa.25x50/08_mapping_original_labels/targets.csv" \
+#   -F "predicted_csv=@/home/alex/Downloads/github/SITS-sample-quality/api/v.0.0.1/projs/pampa.25x50/10_clustering/KMeans/predicted.csv"
+############################################################################################################
+
+
+
+
+
 #############################################################################################################
+# curl -X POST http://127.0.0.1:5000/calculate_clustering_accuracy \
+#   -F "project_name=acajutiba" \
+#   -F "alg=DBSCAN" \
+#   -F "targets_csv=@/home/alex/Downloads/github/SITS-sample-quality/api/v.0.0.1/projs/acajutiba/08_mapping_original_labels/targets.csv" \
+#   -F "predicted_csv=@/home/alex/Downloads/github/SITS-sample-quality/api/v.0.0.1/projs/acajutiba/10_clustering/DBSCAN/predicted.csv"
+#############################################################################################################
+# curl -X POST http://127.0.0.1:5000/calculate_clustering_accuracy \
+#   -F "project_name=acajutiba" \
+#   -F "alg=HDBSCAN" \
+#   -F "targets_csv=@/home/alex/Downloads/github/SITS-sample-quality/api/v.0.0.1/projs/acajutiba/08_mapping_original_labels/targets.csv" \
+#   -F "predicted_csv=@/home/alex/Downloads/github/SITS-sample-quality/api/v.0.0.1/projs/acajutiba/10_clustering/HDBSCAN/predicted.csv"
+#############################################################################################################
+# curl -X POST http://127.0.0.1:5000/calculate_clustering_accuracy \
+#   -F "project_name=acajutiba" \
+#   -F "alg=AGGHIE" \
+#   -F "targets_csv=@/home/alex/Downloads/github/SITS-sample-quality/api/v.0.0.1/projs/acajutiba/08_mapping_original_labels/targets.csv" \
+#   -F "predicted_csv=@/home/alex/Downloads/github/SITS-sample-quality/api/v.0.0.1/projs/acajutiba/10_clustering/agglomerative_hierarchical/predicted.csv"
+#############################################################################################################
+# curl -X POST http://127.0.0.1:5000/calculate_clustering_accuracy \
+#   -F "project_name=acajutiba" \
+#   -F "alg=KMEANS" \
+#   -F "targets_csv=@/home/alex/Downloads/github/SITS-sample-quality/api/v.0.0.1/projs/acajutiba/08_mapping_original_labels/targets.csv" \
+#   -F "predicted_csv=@/home/alex/Downloads/github/SITS-sample-quality/api/v.0.0.1/projs/acajutiba/10_clustering/KMeans/predicted.csv"
+############################################################################################################
+
+
+
 
 #  OBS: Nesse ponto não é problema validar a acurácia sem chave primária, pois, nenhuma iteração de remoção aconteceu
 #       então, nesse contexto, a posição funciona como chave primária.
 @app.route('/calculate_clustering_accuracy', methods=['POST'])
 def calculate_clustering_accuracy():
     try:
-        # Obtém parâmetros do formulário
-        project_name = request.form['project_name']
-        alg = request.form['alg']
+        # ==========================================================
+        # 1. Validação dos parâmetros recebidos
+        # ==========================================================
+        required_form_fields = ['project_name', 'alg']
+        required_files = ['targets_csv', 'predicted_csv']
 
-        # Obtém os arquivos enviados
+        missing_form_fields = [
+            field
+            for field in required_form_fields
+            if field not in request.form
+        ]
+
+        missing_files = [
+            field
+            for field in required_files
+            if field not in request.files
+        ]
+
+        if missing_form_fields:
+            return jsonify({
+                'error': (
+                    'Parâmetros ausentes: '
+                    f'{missing_form_fields}'
+                )
+            }), 400
+
+        if missing_files:
+            return jsonify({
+                'error': (
+                    'Arquivos ausentes: '
+                    f'{missing_files}'
+                )
+            }), 400
+
+        project_name = request.form['project_name'].strip()
+        alg = request.form['alg'].strip()
+
         targets_file = request.files['targets_csv']
         predicted_file = request.files['predicted_csv']
 
-        # Lê os dados
+        # ==========================================================
+        # 2. Leitura dos CSVs
+        # ==========================================================
         df_targets = pd.read_csv(targets_file)
         df_predicted = pd.read_csv(predicted_file)
 
-        # Renomeia colunas
-        df_targets.columns = ['position', 'true_label']
-        df_predicted.columns = ['position', 'predicted_label']
+        if df_targets.empty:
+            return jsonify({
+                'error': 'O arquivo targets_csv está vazio.'
+            }), 400
 
-        # Mescla pelas posições
-        df_merged = pd.merge(df_targets, df_predicted, on='position')
+        if df_predicted.empty:
+            return jsonify({
+                'error': 'O arquivo predicted_csv está vazio.'
+            }), 400
+
+        # ==========================================================
+        # 3. Normalização dos nomes das colunas
+        #
+        # Permite tratar, por exemplo:
+        # POS, Pos, pos, LABEL, Label, label etc.
+        # ==========================================================
+        df_targets.columns = [
+            str(column).strip().lower()
+            for column in df_targets.columns
+        ]
+
+        df_predicted.columns = [
+            str(column).strip().lower()
+            for column in df_predicted.columns
+        ]
+
+        # ==========================================================
+        # 4. Verificação das colunas necessárias
+        #
+        # targets_csv:
+        #   pos = chave primária
+        #   id = ignorado
+        #   label = classe verdadeira
+        #
+        # predicted_csv:
+        #   pos = chave primária
+        #   predicted = cluster previsto
+        # ==========================================================
+        required_targets_columns = {'pos', 'label'}
+        required_predicted_columns = {'pos', 'predicted'}
+
+        missing_targets_columns = (
+            required_targets_columns - set(df_targets.columns)
+        )
+
+        missing_predicted_columns = (
+            required_predicted_columns - set(df_predicted.columns)
+        )
+
+        if missing_targets_columns:
+            return jsonify({
+                'error': (
+                    'Colunas obrigatórias ausentes em targets_csv: '
+                    f'{sorted(missing_targets_columns)}'
+                ),
+                'found_columns': df_targets.columns.tolist()
+            }), 400
+
+        if missing_predicted_columns:
+            return jsonify({
+                'error': (
+                    'Colunas obrigatórias ausentes em predicted_csv: '
+                    f'{sorted(missing_predicted_columns)}'
+                ),
+                'found_columns': df_predicted.columns.tolist()
+            }), 400
+
+        # ==========================================================
+        # 5. Seleção somente das colunas utilizadas
+        #
+        # A coluna ID é descartada intencionalmente.
+        # ==========================================================
+        df_targets = (
+            df_targets[['pos', 'label']]
+            .rename(columns={
+                'label': 'true_label'
+            })
+        )
+
+        df_predicted = (
+            df_predicted[['pos', 'predicted']]
+            .rename(columns={
+                'predicted': 'predicted_label'
+            })
+        )
+
+        # ==========================================================
+        # 6. Validação da chave primária POS
+        # ==========================================================
+        if df_targets['pos'].isna().any():
+            null_count = int(df_targets['pos'].isna().sum())
+
+            return jsonify({
+                'error': (
+                    'A coluna pos de targets_csv contém '
+                    f'{null_count} valor(es) ausente(s).'
+                )
+            }), 400
+
+        if df_predicted['pos'].isna().any():
+            null_count = int(df_predicted['pos'].isna().sum())
+
+            return jsonify({
+                'error': (
+                    'A coluna pos de predicted_csv contém '
+                    f'{null_count} valor(es) ausente(s).'
+                )
+            }), 400
+
+        duplicated_targets = df_targets[
+            df_targets['pos'].duplicated(keep=False)
+        ]['pos'].unique().tolist()
+
+        duplicated_predicted = df_predicted[
+            df_predicted['pos'].duplicated(keep=False)
+        ]['pos'].unique().tolist()
+
+        if duplicated_targets:
+            return jsonify({
+                'error': (
+                    'A coluna pos não é uma chave primária válida '
+                    'em targets_csv.'
+                ),
+                'duplicated_positions': duplicated_targets[:20],
+                'total_duplicated_positions': len(duplicated_targets)
+            }), 400
+
+        if duplicated_predicted:
+            return jsonify({
+                'error': (
+                    'A coluna pos não é uma chave primária válida '
+                    'em predicted_csv.'
+                ),
+                'duplicated_positions': duplicated_predicted[:20],
+                'total_duplicated_positions': len(duplicated_predicted)
+            }), 400
+
+        # ==========================================================
+        # 7. Verificação de correspondência integral das posições
+        #
+        # Como nenhum registro foi removido nesta fase, os conjuntos
+        # de POS devem ser exatamente iguais.
+        # ==========================================================
+        target_positions = set(df_targets['pos'])
+        predicted_positions = set(df_predicted['pos'])
+
+        positions_missing_in_predicted = sorted(
+            target_positions - predicted_positions
+        )
+
+        positions_missing_in_targets = sorted(
+            predicted_positions - target_positions
+        )
+
+        if (
+            positions_missing_in_predicted
+            or positions_missing_in_targets
+        ):
+            return jsonify({
+                'error': (
+                    'Os arquivos não possuem exatamente o mesmo '
+                    'conjunto de valores na coluna pos.'
+                ),
+                'missing_in_predicted': (
+                    positions_missing_in_predicted[:20]
+                ),
+                'total_missing_in_predicted': (
+                    len(positions_missing_in_predicted)
+                ),
+                'missing_in_targets': (
+                    positions_missing_in_targets[:20]
+                ),
+                'total_missing_in_targets': (
+                    len(positions_missing_in_targets)
+                )
+            }), 400
+
+        # ==========================================================
+        # 8. Mesclagem usando POS como chave primária
+        #
+        # validate='one_to_one' garante formalmente que cada posição
+        # aparece uma única vez em cada arquivo.
+        # ==========================================================
+        df_merged = pd.merge(
+            df_targets,
+            df_predicted,
+            on='pos',
+            how='inner',
+            validate='one_to_one',
+            sort=True
+        )
+
+        if len(df_merged) != len(df_targets):
+            return jsonify({
+                'error': (
+                    'A quantidade de registros após a mesclagem '
+                    'é diferente da quantidade original.'
+                ),
+                'targets_rows': int(len(df_targets)),
+                'predicted_rows': int(len(df_predicted)),
+                'merged_rows': int(len(df_merged))
+            }), 400
+
+        # ==========================================================
+        # 9. Verificação dos campos que serão comparados
+        # ==========================================================
+        if df_merged['true_label'].isna().any():
+            null_count = int(
+                df_merged['true_label'].isna().sum()
+            )
+
+            return jsonify({
+                'error': (
+                    'A coluna label contém '
+                    f'{null_count} valor(es) ausente(s).'
+                )
+            }), 400
+
+        if df_merged['predicted_label'].isna().any():
+            null_count = int(
+                df_merged['predicted_label'].isna().sum()
+            )
+
+            return jsonify({
+                'error': (
+                    'A coluna predicted contém '
+                    f'{null_count} valor(es) ausente(s).'
+                )
+            }), 400
 
         y_true = df_merged['true_label'].to_numpy()
         y_pred = df_merged['predicted_label'].to_numpy()
 
-        # Calcula a acurácia
+        # ==========================================================
+        # 10. Cálculo da acurácia de clusterização
+        # ==========================================================
         accuracy = cluster_acc(y_true, y_pred)
-        accuracy_rounded = round(accuracy, 6)
+        accuracy_rounded = round(float(accuracy), 6)
 
-        # Caminho para salvar o resultado
-        output_dir = f'./projs/{project_name}/11_clustering_metrics'
+        # ==========================================================
+        # 11. Salvamento do resultado
+        # ==========================================================
+        output_dir = os.path.join(
+            '.',
+            'projs',
+            project_name,
+            '11_clustering_metrics'
+        )
+
         os.makedirs(output_dir, exist_ok=True)
-        output_path = os.path.join(output_dir, f'{alg}_acc')
 
-        # Salva no arquivo
-        with open(output_path, 'w') as f:
-            f.write(str(accuracy_rounded))
+        output_path = os.path.join(
+            output_dir,
+            f'{alg}_acc'
+        )
 
+        with open(output_path, 'w', encoding='utf-8') as output_file:
+            output_file.write(str(accuracy_rounded))
+
+        # ==========================================================
+        # 12. Resposta
+        # ==========================================================
         return jsonify({
             'accuracy': accuracy_rounded,
+            'records_compared': int(len(df_merged)),
+            'primary_key': 'pos',
+            'true_label_column': 'label',
+            'predicted_label_column': 'predicted',
+            'ignored_columns': ['id'],
             'saved_to': output_path
-        })
+        }), 200
 
-    except Exception as e:
+    except pd.errors.EmptyDataError:
         return jsonify({
-            'error': str(e)
+            'error': (
+                'Um dos arquivos enviados está vazio '
+                'ou não contém cabeçalho.'
+            )
         }), 400
+
+    except pd.errors.ParserError as error:
+        return jsonify({
+            'error': f'Erro ao interpretar um dos CSVs: {str(error)}'
+        }), 400
+
+    except Exception as error:
+        return jsonify({
+            'error': str(error)
+        }), 400
+        
 
 
 
@@ -7592,6 +8028,36 @@ def calculate_clustering_accuracy():
 #   -F "targets_csv=@/home/alex/Downloads/github/improving_crop_identification__rest/projs/pampa.25x50/08_mapping_original_labels/targets.csv" \
 #   -F "predicted_csv=@/home/alex/Downloads/github/improving_crop_identification__rest/projs/pampa.25x50/10_clustering/agglomerative_hierarchical/predicted.csv"
 #############################################################################################################
+
+
+
+#############################################################################################################
+# curl -X POST http://127.0.0.1:5000/nmi \
+#   -F "project_name=acajutiba" \
+#   -F "alg=KMEANS" \
+#   -F "targets_csv=@/home/alex/Downloads/github/SITS-sample-quality/api/v.0.0.1/projs/acajutiba/08_mapping_original_labels/targets.csv" \
+#   -F "predicted_csv=@/home/alex/Downloads/github/SITS-sample-quality/api/v.0.0.1/projs/acajutiba/10_clustering/KMeans/predicted.csv"
+#############################################################################################################
+# curl -X POST http://127.0.0.1:5000/nmi \
+#   -F "project_name=acajutiba" \
+#   -F "alg=DBSCAN" \
+#   -F "targets_csv=@/home/alex/Downloads/github/SITS-sample-quality/api/v.0.0.1/projs/acajutiba/08_mapping_original_labels/targets.csv" \
+#   -F "predicted_csv=@/home/alex/Downloads/github/SITS-sample-quality/api/v.0.0.1/projs/acajutiba/10_clustering/DBSCAN/predicted.csv"
+#############################################################################################################
+# curl -X POST http://127.0.0.1:5000/nmi \
+#   -F "project_name=acajutiba" \
+#   -F "alg=HDBSCAN" \
+#   -F "targets_csv=@/home/alex/Downloads/github/SITS-sample-quality/api/v.0.0.1/projs/acajutiba/08_mapping_original_labels/targets.csv" \
+#   -F "predicted_csv=@/home/alex/Downloads/github/SITS-sample-quality/api/v.0.0.1/projs/acajutiba/10_clustering/HDBSCAN/predicted.csv"
+#############################################################################################################
+# curl -X POST http://127.0.0.1:5000/nmi \
+#   -F "project_name=acajutiba" \
+#   -F "alg=AGGHIE" \
+#   -F "targets_csv=@/home/alex/Downloads/github/SITS-sample-quality/api/v.0.0.1/projs/acajutiba/08_mapping_original_labels/targets.csv" \
+#   -F "predicted_csv=@/home/alex/Downloads/github/SITS-sample-quality/api/v.0.0.1/projs/acajutiba/10_clustering/agglomerative_hierarchical/predicted.csv"
+############################################################################################################
+
+
 
 
 @app.route("/nmi", methods=["POST"])
@@ -8080,6 +8546,36 @@ def nmi():
 #############################################################################################################
 
 
+
+
+#############################################################################################################
+# curl -X POST http://127.0.0.1:5000/ari \
+#   -F "project_name=acajutiba" \
+#   -F "alg=KMEANS" \
+#   -F "targets_csv=@/home/alex/Downloads/github/SITS-sample-quality/api/v.0.0.1/projs/acajutiba/08_mapping_original_labels/targets.csv" \
+#   -F "predicted_csv=@/home/alex/Downloads/github/SITS-sample-quality/api/v.0.0.1/projs/acajutiba/10_clustering/KMeans/predicted.csv"
+#############################################################################################################
+# curl -X POST http://127.0.0.1:5000/ari \
+#   -F "project_name=acajutiba" \
+#   -F "alg=DBSCAN" \
+#   -F "targets_csv=@/home/alex/Downloads/github/SITS-sample-quality/api/v.0.0.1/projs/acajutiba/08_mapping_original_labels/targets.csv" \
+#   -F "predicted_csv=@/home/alex/Downloads/github/SITS-sample-quality/api/v.0.0.1/projs/acajutiba/10_clustering/DBSCAN/predicted.csv"
+#############################################################################################################
+# curl -X POST http://127.0.0.1:5000/ari \
+#   -F "project_name=acajutiba" \
+#   -F "alg=HDBSCAN" \
+#   -F "targets_csv=@/home/alex/Downloads/github/SITS-sample-quality/api/v.0.0.1/projs/acajutiba/08_mapping_original_labels/targets.csv" \
+#   -F "predicted_csv=@/home/alex/Downloads/github/SITS-sample-quality/api/v.0.0.1/projs/acajutiba/10_clustering/HDBSCAN/predicted.csv"
+#############################################################################################################
+# curl -X POST http://127.0.0.1:5000/ari \
+#   -F "project_name=acajutiba" \
+#   -F "alg=AGGHIE" \
+#   -F "targets_csv=@/home/alex/Downloads/github/SITS-sample-quality/api/v.0.0.1/projs/acajutiba/08_mapping_original_labels/targets.csv" \
+#   -F "predicted_csv=@/home/alex/Downloads/github/SITS-sample-quality/api/v.0.0.1/projs/acajutiba/10_clustering/agglomerative_hierarchical/predicted.csv"
+#############################################################################################################
+
+
+
 @app.route("/ari", methods=["POST"])
 def ari():
     try:
@@ -8156,6 +8652,8 @@ def ari():
 # curl -X GET "http://localhost:5000/clustering_metrics_summary?project_name=ssf.25x25"
 #############################################################################################################
 # curl -X GET "http://localhost:5000/clustering_metrics_summary?project_name=pampa.25x50"
+#############################################################################################################
+# curl -X GET "http://localhost:5000/clustering_metrics_summary?project_name=acajutiba"
 #############################################################################################################
 
 @app.route("/clustering_metrics_summary", methods=["GET"])
@@ -9295,9 +9793,34 @@ def clustering_metrics_summary():
 #   -F "data_columns=B02,B03,B04,B08,EVI,NDVI" \
 #   -F "tuning_mode=balanced" \
 #   -F "topology=hexagonal" \
-#   -F "neighborhood_function=gaussian"
+#   -F "neighborhood_funcPeetion=gaussian"
 #############################################################################################################
 
+
+#############################################################################################################
+# curl -X POST http://127.0.0.1:5000/step_01__train_som \
+#   -F "project_name=acajutiba" \
+#   -F "iteration_number=1" \
+#   -F "dimension=40x40" \
+#   -F "sigma=1" \
+#   -F "learning_rate=0.35" \
+#   -F "data_columns=B08,B11,EVI,NDVI" \
+#   -F "tuning_mode=balanced" \
+#   -F "topology=hexagonal" \
+#   -F "neighborhood_function=gaussian" \
+#   -F "data=@/home/alex/Downloads/github/SITS-sample-quality/api/v.0.0.1/projs/acajutiba/01_standard_scaler/20260727140025_acajutiba_standard_scaler.csv"
+#############################################################################################################
+# curl -X POST http://127.0.0.1:5000/step_01__train_som \
+#   -F "project_name=acajutiba" \
+#   -F "iteration_number=2" \
+#   -F "dimension=40x40" \
+#   -F "sigma=1" \
+#   -F "learning_rate=0.35" \
+#   -F "data_columns=B08,B11,EVI,NDVI" \
+#   -F "tuning_mode=balanced" \
+#   -F "topology=hexagonal" \
+#   -F "neighborhood_function=gaussian"
+#############################################################################################################
 
 
 @app.route('/step_01__train_som', methods=['POST'])
@@ -10380,6 +10903,26 @@ def step_01__train_som():
 #   -F "data_columns=B02,B03,B04,B08,EVI,NDVI"
 #############################################################################################################
 
+
+
+
+#############################################################################################################
+# curl -X POST http://127.0.0.1:5000/step_02__clusterize \
+#   -F "project_name=acajutiba" \
+#   -F "iteration_number=1" \
+#   -F "algorithm=kmeans" \
+#   -F "dimension=40x40" \
+#   -F "actual_number_of_clusters=14" \
+#   -F "data_columns=B08,B11,EVI,NDVI"
+#############################################################################################################
+# curl -X POST http://127.0.0.1:5000/step_02__clusterize \
+#   -F "project_name=acajutiba" \
+#   -F "iteration_number=2" \
+#   -F "algorithm=kmeans" \
+#   -F "dimension=40x40" \
+#   -F "actual_number_of_clusters=14" \
+#   -F "data_columns=B08,B11,EVI,NDVI"
+#############################################################################################################
 
 
 @app.route('/step_02__clusterize', methods=['POST'])
@@ -11771,6 +12314,27 @@ def step_02__clusterize():
 #   -F "category_column=label"
 # ############################################################################################################
 
+
+
+
+
+# ############################################################################################################
+# curl -X POST http://127.0.0.1:5000/step_03__build_the_exclusion_map_and_exclude \
+#   -F "project_name=acajutiba" \
+#   -F "iteration_number=1" \
+#   -F "prior_threshold=0.6" \
+#   -F "posterior_threshold=0.6" \
+#   -F "column_key=id" \
+#   -F "category_column=label"
+# ############################################################################################################
+# curl -X POST http://127.0.0.1:5000/step_03__build_the_exclusion_map_and_exclude \
+#   -F "project_name=acajutiba" \
+#   -F "iteration_number=2" \
+#   -F "prior_threshold=0.6" \
+#   -F "posterior_threshold=0.6" \
+#   -F "column_key=id" \
+#   -F "category_column=label"
+# ############################################################################################################
 
 
 # OBS: Se o arquivo "./projs/<project_name>/12_method/data/data_0.csv" não possuir a coluna "id"...
@@ -16693,7 +17257,61 @@ def step_03__build_the_exclusion_map_and_exclude():
 #############################################################################################################
 
 
-
+#############################################################################################################
+# curl -X POST http://127.0.0.1:5000/step_04__evaluate_results_after_exclude \
+#   -F "project_name=acajutiba" \
+#   -F "iteration_number=1" \
+#   -F "k_in_kfcv=10" \
+#   -F "key_column=id" \
+#   -F "category_column=label" \
+#   -F "data_columns=B08,B11,EVI,NDVI" \
+#   -F "table_title=After Bayesian Exclusion 1"
+#############################################################################################################
+# curl -X POST http://127.0.0.1:5000/step_04__evaluate_results_after_exclude \
+#   -F "project_name=acajutiba" \
+#   -F "iteration_number=1" \
+#   -F "k_in_kfcv=10" \
+#   -F "key_column=id" \
+#   -F "category_column=label" \
+#   -F "data_columns=B08,B11,EVI,NDVI" \
+#   -F "table_title=After Bayesian Exclusion 1" \
+#   -F 'rfparams={
+#     "bootstrap": false,
+#     "criterion": "entropy",
+#     "max_depth": 30,
+#     "max_features": "sqrt",
+#     "min_samples_leaf": 1,
+#     "min_samples_split": 2,
+#     "n_estimators": 200
+#   }'
+#############################################################################################################
+# curl -X POST http://127.0.0.1:5000/step_04__evaluate_results_after_exclude \
+#   -F "project_name=acajutiba" \
+#   -F "iteration_number=2" \
+#   -F "k_in_kfcv=10" \
+#   -F "key_column=id" \
+#   -F "category_column=label" \
+#   -F "data_columns=B08,B11,EVI,NDVI" \
+#   -F "table_title=After Bayesian Exclusion 2"
+#############################################################################################################
+# curl -X POST http://127.0.0.1:5000/step_04__evaluate_results_after_exclude \
+#   -F "project_name=acajutiba" \
+#   -F "iteration_number=2" \
+#   -F "k_in_kfcv=10" \
+#   -F "key_column=id" \
+#   -F "category_column=label" \
+#   -F "data_columns=B08,B11,EVI,NDVI" \
+#   -F "table_title=After Bayesian Exclusion 2" \
+#   -F 'rfparams={
+#     "bootstrap": false,
+#     "criterion": "entropy",
+#     "max_depth": 30,
+#     "max_features": "sqrt",
+#     "min_samples_leaf": 1,
+#     "min_samples_split": 2,
+#     "n_estimators": 200
+#   }'
+#############################################################################################################
 
 # OBS: Para ordenar a criação de "predicted.csv" a cada iteração, a coluna "key_column" 
 #      que indica a chave primária no csv, passou a ser obrigatória neste endpoint.
@@ -16978,6 +17596,18 @@ def step_04__evaluate_results_after_exclude():
 #   -F "rd_ss_csv_folder_path=/home/alex/Downloads/github/SITS-sample-quality/api/v.0.0.1/projs/ssf.25x25/00_preprocessing/original_data/" \
 #   -F "it_csv_folder_path=/home/alex/Downloads/github/SITS-sample-quality/api/v.0.0.1/projs/ssf.25x25/12_method/data/"
 #############################################################################################################
+
+
+
+#############################################################################################################
+# curl -X POST http://127.0.0.1:5000/statistical_summary \
+#   -F "project_name=acajutiba" \
+#   -F "rotate_titles_in_the_matrix_of_confusion=true" \
+#   -F "category_column=label" \
+#   -F "rd_ss_csv_folder_path=/home/alex/Downloads/github/SITS-sample-quality/api/v.0.0.1/projs/acajutiba/00_preprocessing/original_data/" \
+#   -F "it_csv_folder_path=/home/alex/Downloads/github/SITS-sample-quality/api/v.0.0.1/projs/acajutiba/12_method/data/"
+#############################################################################################################
+
 
 ## OBS: Antes de executar "statistical_summary", certifique-se de ter executado "mapping_original_labels"
 #       E, também, Antes de executar "", certifique-se de ter executado "step_04__evaluate_results_after_exclude" na ult. iteração
